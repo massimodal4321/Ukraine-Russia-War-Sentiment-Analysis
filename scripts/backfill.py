@@ -93,6 +93,7 @@ SELECT url, source, title FROM capped WHERE rn <= @cap ORDER BY RAND() LIMIT @li
 """
 
 def pull(day):
+    print(f"  {day}: querying BigQuery...", flush=True)
     cfg = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("day", "DATE", day),
         bigquery.ScalarQueryParameter("cap", "INT64", DOMAIN_CAP),
@@ -108,6 +109,7 @@ def pull(day):
         seen.add(k)
         out.append({"title": c, "source": r["source"], "url": r["url"],
                     "lang": langid.classify(c)[0]})
+    print(f"  {day}: {len(out)} clean headlines", flush=True)
     return out[:PER_DAY]
 
 # ---------------------------------------------------------------- scoring
@@ -137,15 +139,17 @@ def score(batch, retries=4):
             # never retry an auth failure, waiting cannot fix it
             if "401" in msg or "403" in msg or "UNAUTHENTICATED" in msg:
                 raise DeadKey(msg[:200])
-            print(f"      retry {a+1}: {msg[:90]}", flush=True)
+            print(f"      retry {a+1}/{retries}: {msg[:110]}", flush=True)
             time.sleep(8 * (a + 1))
     return {}
 
 def score_day(items):
     """Returns (scores, complete). Incomplete days are never written."""
     S, complete = {}, True
+    nb = (len(items) + BATCH - 1) // BATCH
     for i in range(0, len(items), BATCH):
         chunk = items[i:i + BATCH]
+        print(f"    batch {i//BATCH + 1}/{nb} ...", flush=True)
         got = score(chunk)
         if len(got) < len(chunk):
             time.sleep(15)
@@ -155,6 +159,7 @@ def score_day(items):
             complete = False
             print(f"      SHORT {len(got)}/{len(chunk)}", flush=True)
         S.update(got)
+        print(f"    batch {i//BATCH + 1}/{nb} -> {len(got)}/{len(chunk)}", flush=True)
         time.sleep(GAP)
     return S, complete
 
@@ -178,6 +183,20 @@ def day_list():
 
 # ---------------------------------------------------------------- main
 def main():
+    print("checking connections...", flush=True)
+    try:
+        n = list(bq.query("SELECT 1 AS ok").result())[0].ok
+        print(f"  BigQuery OK ({n})", flush=True)
+    except Exception as e:
+        sys.exit(f"BigQuery failed: {str(e)[:200]}")
+    try:
+        r = client.models.generate_content(
+            model=MODEL, contents="Reply with the single word OK",
+            config=types.GenerateContentConfig(temperature=0))
+        print(f"  Gemini OK ({r.text.strip()[:20]})", flush=True)
+    except Exception as e:
+        sys.exit(f"Gemini failed: {str(e)[:200]}")
+
     store = json.loads(DATA.read_text()) if DATA.exists() else {"meta": {}, "daily": {}}
     if store["meta"].get("rubric") and store["meta"]["rubric"] != RUBRIC_HASH:
         sys.exit(f"RUBRIC CHANGED: stored {store['meta']['rubric']} vs current "
