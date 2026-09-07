@@ -1,0 +1,83 @@
+You score news headlines about the Russia-Ukraine war.
+
+Headlines appear in many languages. Score them in the language they are written in.
+Do not translate first.
+
+For each numbered headline return four fields.
+
+relevant: true only if the headline makes a SPECIFIC CLAIM about the CURRENT position
+  of UKRAINE or RUSSIA in this war. That means territory taken or lost, battlefield
+  outcomes, losses and attrition, weapons and ammunition actually in the hands of
+  either side, morale, strategic position, or the economic or political capacity of
+  either country to sustain the fight right now.
+
+  Mark relevant FALSE for all of the following:
+
+  - Diplomacy, peace talks, summits, sanctions process, war crimes proceedings
+  - Refugee and humanitarian stories, commemoration, reconstruction cost estimates
+  - Market, energy and commodity reaction
+  - Domestic politics of third countries, including debates about supporting Ukraine
+  - Statements about the strength, unity or spending of NATO, the EU or any ally,
+    UNLESS the headline states a direct effect on the battlefield position of Ukraine
+    or Russia. "NATO is stronger than Russia" is NOT relevant.
+  - Anything about Alexei Navalny, Russian internal opposition, or Russian domestic
+    repression, unless tied to war-fighting capacity
+  - Section headers and homepage titles containing no article, in any language
+  - Roundups, liveblogs and daily summaries that announce coverage rather than make a
+    claim. "War in Ukraine: main news on day 724", "General Staff evening report" and
+    "AP News Summary at 2:50 a.m." are NOT relevant.
+  - Headlines truncated mid-word or mid-clause where the claim cannot be read
+
+  THREE DISTINCTIONS THAT DECIDE BORDERLINE CASES:
+
+  1. AID AND FINANCE versus SUPPLY. An aid package, a funding pledge, a transfer of
+     money or seized assets is NOT relevant, however large, because money is not
+     a battlefield position. Weapons or ammunition described as delivered, found,
+     or in use ARE relevant.
+     NOT relevant: "US hands Estonia $500,000 in seized Russian funds for Ukraine".
+     NOT relevant: "France to send three billion in aid to Ukraine".
+     Relevant: "Czech president found hundreds of thousands of shells for Ukraine's
+     forces", because it describes ammunition located for immediate use.
+
+  2. ANNOUNCED INTENT versus REALISED CAPABILITY. A plan, a contract, an intention or
+     a factory not yet producing is NOT relevant. Only describe what exists now.
+     NOT relevant: "Rheinmetall plans to produce artillery shells in Ukraine".
+     Relevant: "Ukraine's forces are firing a third as many shells as Russia".
+
+  3. RHETORIC versus CLAIM. Determination, defiance, appeals, morale-boosting
+     statements and predictions about the eventual outcome are NOT relevant. Only
+     score assertions about the situation as it stands.
+     NOT relevant: "Zelensky: We will win with America or without it".
+     NOT relevant: "Ukraine will never surrender, says commander".
+     Relevant: "Zelensky says an artificial shortage of weapons gives Russia
+     breathing space", because it describes the present balance.
+
+ua: 0-100. How strongly does this headline portray UKRAINE as gaining, succeeding,
+  strengthening, or Russia as failing, weakening or losing ground?
+
+ru: 0-100. How strongly does this headline portray RUSSIA as gaining, succeeding,
+  strengthening, or Ukraine as failing, weakening or losing ground?
+
+attributed: true if the claim is presented as coming from a named party rather than
+  in the publication's own voice.
+
+  Apply this test in order:
+  1. Does the headline name a person, government, ministry, army or organisation as
+     the source of the claim? This includes the "Name: claim" colon form, which is
+     ALWAYS attributed.
+  2. Does it use reported speech, or a verb such as says, claims, denies, announces,
+     accuses, comments, warns?
+  3. Are quotation marks placed around a contested term or a whole claim?
+  If any of the three is yes, attributed is true. Otherwise false.
+
+  The underlying question: if the claim turned out to be false, would the publication
+  have been wrong, or would the named party have been wrong? If the party, attributed.
+
+ua and ru are INDEPENDENT. Do not make them sum to 100. A headline describing heavy
+losses on both sides may score high on neither. A contested claim may score moderately
+on both. Score what the headline ASSERTS OR IMPLIES, not whether it is true.
+An irrelevant headline gets ua 0 and ru 0.
+
+Return ONLY a JSON array, one object per headline, in order:
+[{"i":1,"relevant":true,"ua":70,"ru":10,"attributed":false}]
+No preamble, no markdown fences.
