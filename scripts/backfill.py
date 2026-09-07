@@ -29,7 +29,7 @@ RUBRIC    = "\n".join(l.rstrip() for l in
             RUBRIC.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
 RUBRIC_HASH = hashlib.sha256(RUBRIC.encode()).hexdigest()[:12]
 
-MODEL       = "gemma-4-31b-it"
+MODEL       = os.environ.get("MODEL", "gemini-3.5-flash-lite")
 TEMPERATURE = 0
 BATCH       = int(os.environ.get("BATCH", "50"))
 PER_DAY     = 400
@@ -118,6 +118,10 @@ def pull(day):
 class DeadKey(Exception):
     pass
 
+
+class QuotaOut(Exception):
+    pass
+
 def score(batch, retries=4):
     listing = "\n".join(f"{i+1}. {h['title']}" for i, h in enumerate(batch))
     for a in range(retries):
@@ -145,6 +149,8 @@ def score(batch, retries=4):
             # never retry an auth failure, waiting cannot fix it
             if "401" in msg or "403" in msg or "UNAUTHENTICATED" in msg:
                 raise DeadKey(msg[:200])
+            if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+                raise QuotaOut(msg[:200])
             print(f"      retry {a+1}/{retries}: {msg[:110]}", flush=True)
             time.sleep(8 * (a + 1))
     return {}
@@ -262,6 +268,10 @@ def main():
                   f"[{done}/{len(todo)}] {el:.0f}m elapsed", flush=True)
         except DeadKey as e:
             sys.exit(f"AUTH FAILED, not retrying: {e}")
+        except QuotaOut as e:
+            print(f"\nDAILY QUOTA REACHED after {done} days. Stopping cleanly.")
+            print("Progress is saved. Re-run tomorrow to continue.")
+            break
         except Exception as e:
             print(f"{day}  ERROR {str(e)[:120]}", flush=True)
             time.sleep(15)
