@@ -47,9 +47,10 @@ jobs:
           GCP_SA_KEY_FILE: /tmp/sa.json
           PHASE: ${{ inputs.phase }}
           BUDGET_MIN: "320"
+          MODEL: "gemini-3.5-flash-lite"
           BATCH: "25"
-          REQ_TIMEOUT_S: "180"
-          GAP_S: "20"
+          REQ_TIMEOUT_S: "240"
+          GAP_S: "5"
         run: python scripts/backfill.py
 
       - name: Commit
