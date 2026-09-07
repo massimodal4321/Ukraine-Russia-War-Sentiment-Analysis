@@ -48,7 +48,7 @@ jobs:
           PHASE: ${{ inputs.phase }}
           BUDGET_MIN: "320"
           MODEL: "gemini-3.5-flash-lite"
-          BATCH: "25"
+          BATCH: "100"
           REQ_TIMEOUT_S: "240"
           GAP_S: "5"
         run: python scripts/backfill.py
