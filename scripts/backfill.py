@@ -140,6 +140,8 @@ def score(batch, retries=4):
                     out[batch[i]["title"]] = {
                         "rel": bool(o.get("relevant")), "ua": float(o.get("ua", 0)),
                         "ru": float(o.get("ru", 0)), "attr": bool(o.get("attributed")),
+                        "kind": str(o.get("kind", "other")),
+                        "src": str(o.get("source", "publication")),
                         "lang": batch[i]["lang"]}
             print(f"      ok in {time.time()-t_req:.0f}s", flush=True)
             return out
@@ -248,14 +250,27 @@ def main():
                 continue
             ua_u = [S[t]["ua"] for t in rel if not S[t]["attr"]]
             ru_u = [S[t]["ru"] for t in rel if not S[t]["attr"]]
+            # index excluding belligerent claims but keeping independent analysts
+            ua_nb = [S[t]["ua"] for t in rel if S[t]["src"] != "belligerent"]
+            ru_nb = [S[t]["ru"] for t in rel if S[t]["src"] != "belligerent"]
             store["daily"][day] = {
                 "ua": round(statistics.mean(S[t]["ua"] for t in rel), 2),
                 "ru": round(statistics.mean(S[t]["ru"] for t in rel), 2),
                 "ua_unattr": round(statistics.mean(ua_u), 2) if ua_u else None,
                 "ru_unattr": round(statistics.mean(ru_u), 2) if ru_u else None,
+                "ua_nobell": round(statistics.mean(ua_nb), 2) if ua_nb else None,
+                "ru_nobell": round(statistics.mean(ru_nb), 2) if ru_nb else None,
                 "n": len(rel), "sampled": len(S),
                 "attr": sum(1 for t in rel if S[t]["attr"]),
                 "langs": dict(collections.Counter(S[t]["lang"] for t in rel).most_common(8)),
+                "kinds": dict(collections.Counter(S[t]["kind"] for t in rel).most_common()),
+                "srcs": dict(collections.Counter(S[t]["src"] for t in rel).most_common()),
+                "by_kind": {k: {"ua": round(statistics.mean(
+                                    [S[t]["ua"] for t in rel if S[t]["kind"] == k]), 1),
+                                "ru": round(statistics.mean(
+                                    [S[t]["ru"] for t in rel if S[t]["kind"] == k]), 1),
+                                "n": sum(1 for t in rel if S[t]["kind"] == k)}
+                            for k in set(S[t]["kind"] for t in rel)},
             }
             store["meta"] = {"rubric": RUBRIC_HASH, "model": MODEL, "temp": TEMPERATURE,
                              "per_day": PER_DAY, "batch": BATCH, "domain_cap": DOMAIN_CAP,
