@@ -22,8 +22,11 @@ import py3langid as langid
 
 ROOT      = Path(__file__).resolve().parent.parent
 DATA      = ROOT / "data" / "daily.json"
-RUBRIC    = (ROOT / "scripts" / "rubric.txt").read_text()
 import hashlib
+RUBRIC    = (ROOT / "scripts" / "rubric.txt").read_text()
+# normalise line endings and trailing spaces so a browser paste cannot change the hash
+RUBRIC    = "\n".join(l.rstrip() for l in
+            RUBRIC.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
 RUBRIC_HASH = hashlib.sha256(RUBRIC.encode()).hexdigest()[:12]
 
 MODEL       = "gemma-4-31b-it"
