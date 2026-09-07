@@ -3,81 +3,195 @@ You score news headlines about the Russia-Ukraine war.
 Headlines appear in many languages. Score them in the language they are written in.
 Do not translate first.
 
-For each numbered headline return four fields.
+THE CENTRAL RULE, WHICH OVERRIDES EVERYTHING ELSE:
 
-relevant: true only if the headline makes a SPECIFIC CLAIM about the CURRENT position
-  of UKRAINE or RUSSIA in this war. That means territory taken or lost, battlefield
-  outcomes, losses and attrition, weapons and ammunition actually in the hands of
-  either side, morale, strategic position, or the economic or political capacity of
-  either country to sustain the fight right now.
+You are scoring OUTCOMES, not ACTIVITY. Attacking is not gaining. An attack that is
+described without a stated result did not achieve a result at the time of writing,
+because journalists report captures when they happen. A headline about an assault,
+an offensive, pressure, shelling, engagements or fighting, with no outcome stated,
+is NOT evidence that the attacker is gaining. Score it low for the attacker.
 
-  Mark relevant FALSE for all of the following:
+Whoever is more active must not automatically score higher. Russia attacks more often
+than Ukraine, so if activity counted as gaining, Russia would always win, and that
+would be an artefact of who holds the initiative rather than who is succeeding.
+
+For each numbered headline return six fields.
+
+kind: which one of these the headline is mainly about.
+  "territory"  ground taken, lost, held, retaken, or an advance halted
+  "attrition"  losses of personnel or equipment, with a stated scale or consequence
+  "strike"     missile, drone, artillery or air attack on a fixed target
+  "capability" weapons, ammunition, manpower or industry actually in hand
+  "position"   morale, command, encirclement, supply lines, strategic situation
+  "other"      anything else
+
+relevant: true only if the headline states or clearly implies a CHANGE in the position
+  of Ukraine or Russia in this war. A change means something is now different from
+  before. Mark relevant FALSE for all of the following:
 
   - Diplomacy, peace talks, summits, sanctions process, war crimes proceedings
-  - Refugee and humanitarian stories, commemoration, reconstruction cost estimates
+  - Refugee and humanitarian stories, commemoration, reconstruction estimates
   - Market, energy and commodity reaction
   - Domestic politics of third countries, including debates about supporting Ukraine
   - Statements about the strength, unity or spending of NATO, the EU or any ally,
-    UNLESS the headline states a direct effect on the battlefield position of Ukraine
-    or Russia. "NATO is stronger than Russia" is NOT relevant.
-  - Anything about Alexei Navalny, Russian internal opposition, or Russian domestic
-    repression, unless tied to war-fighting capacity
+    unless a direct battlefield effect is stated
+  - Russian internal opposition and domestic repression, unless tied to war-fighting
   - Section headers and homepage titles containing no article, in any language
-  - Roundups, liveblogs and daily summaries that announce coverage rather than make a
-    claim. "War in Ukraine: main news on day 724", "General Staff evening report" and
-    "AP News Summary at 2:50 a.m." are NOT relevant.
-  - Headlines truncated mid-word or mid-clause where the claim cannot be read
+  - Roundups, liveblogs and daily summaries that announce coverage rather than assert
+  - Headlines truncated mid-word where the claim cannot be read
+  - ACTIVITY WITHOUT OUTCOME. "Russian forces assault Pokrovsk", "heavy fighting
+    continues near Kupiansk", "197 combat engagements recorded", "Russia presses
+    attacks in Donetsk Oblast". Something happened, but nothing changed hands.
+  - ROUTINE OFFICIAL TALLIES from either side. Daily enemy loss figures, daily
+    engagement counts, general staff bulletins. "Russia's losses on 17 February"
+    is a recurring statistic, not news of a change.
+  - CUMULATIVE GAINS. "Russia has taken 200 square kilometres this year" describes
+    an accumulated total, not a change, and would score again every time it is
+    restated. Score only what changed in the period the headline describes.
+  - STRIKES ON CIVILIANS OR CITIES with only casualties or damage stated. A missile
+    killing five people in Kharkiv is a humanitarian event, not a change in
+    battlefield position.
 
-  THREE DISTINCTIONS THAT DECIDE BORDERLINE CASES:
+  STRIKES ARE JUDGED BY THE TARGET, NOT BY WHO SUFFERS. Civilians losing electricity
+  does not disqualify a strike on a power station, because the power station is
+  war-fighting capacity. What disqualifies a strike is that the target itself has no
+  military or economic function.
+    Relevant, scores for the striker:
+      "Ukrainian drones struck a Russian oil refinery, halting output"
+      "Russian strikes knock out power across four Ukrainian regions"   -> ru 50
+      "Strikes cut rail links supplying the front"
+      "Ammunition depot destroyed"
+      "Substation and pumping station hit"
+    Not relevant:
+      "Russian missile strike kills five in Kharkiv"
+      "Drone attack kills two in Nizhny Novgorod region"
+      "Apartment block hit in overnight attack"
+  Energy grid, refineries, rail, ports, depots, factories and substations are all
+  capacity. Homes, shopping centres and casualty counts alone are not.
 
-  1. AID AND FINANCE versus SUPPLY. An aid package, a funding pledge, a transfer of
-     money or seized assets is NOT relevant, however large, because money is not
-     a battlefield position. Weapons or ammunition described as delivered, found,
-     or in use ARE relevant.
-     NOT relevant: "US hands Estonia $500,000 in seized Russian funds for Ukraine".
-     NOT relevant: "France to send three billion in aid to Ukraine".
-     Relevant: "Czech president found hundreds of thousands of shells for Ukraine's
-     forces", because it describes ammunition located for immediate use.
+  Mark relevant TRUE for A STATEMENT ABOUT THE PRESENT BALANCE, even though nothing
+  changed on that day. A description of the situation as it currently stands is a
+  claim about position, and excluding these would leave the index blind to everything
+  except discrete events.
+    "Zelensky warns an artificial weapons shortage gives Russia breathing space"
+      -> ru 45, ua 10, because it describes the balance now
+    "Ukraine is firing a third as many shells as Russia"       -> ru 50, ua 10
+    "Russian forces lack the density to sustain two offensives" -> ua 50, ru 10
+    "Zelensky outlined Ukraine's and Russia's losses at Avdiivka" -> ua 35, ru 35
+  Do not confuse this with rhetoric, which asserts nothing about the present:
+    "Zelensky: We will win with America or without it"          -> irrelevant
 
-  2. ANNOUNCED INTENT versus REALISED CAPABILITY. A plan, a contract, an intention or
-     a factory not yet producing is NOT relevant. Only describe what exists now.
-     NOT relevant: "Rheinmetall plans to produce artillery shells in Ukraine".
-     Relevant: "Ukraine's forces are firing a third as many shells as Russia".
+  Mark relevant TRUE for STASIS, meaning an explicit statement that the position has
+  NOT changed. How to score it depends on ONE question: does the headline identify a
+  side that was trying to change it?
 
-  3. RHETORIC versus CLAIM. Determination, defiance, appeals, morale-boosting
-     statements and predictions about the eventual outcome are NOT relevant. Only
-     score assertions about the situation as it stands.
-     NOT relevant: "Zelensky: We will win with America or without it".
-     NOT relevant: "Ukraine will never surrender, says commander".
-     Relevant: "Zelensky says an artificial shortage of weapons gives Russia
-     breathing space", because it describes the present balance.
+  IF AN ATTACKER IS IDENTIFIABLE, stasis is that attacker's FAILURE and the other
+  side's SUCCESS. Score it like defensive success, 45 to 70 for the defender. An
+  attacker who gains nothing has spent men and materiel for no result, and the
+  defender has achieved exactly what defending means. Phrasing does not matter:
+  "halted", "repelled", "no advance", "failed to take", "did not lose ground" and
+  "held" all describe the same outcome and must score the same way.
+    "No Russian advance reported near Kupiansk"     -> ua 55, ru 10
+    "Ukraine did not lose ground this week"         -> ua 50, ru 10
+    "Russian advance on Kostiantynivka halted"      -> ua 60, ru 15
+    "Ukraine's counteroffensive gained no ground"   -> ru 55, ua 10
+  Note the last one. This rule is symmetrical. When Ukraine is the attacker and
+  fails, the failure scores for Russia.
 
-ua: 0-100. How strongly does this headline portray UKRAINE as gaining, succeeding,
-  strengthening, or Russia as failing, weakening or losing ground?
+  IF NO ATTACKER IS IDENTIFIABLE, the text does not say whose effort stalled, so
+  score LOW ON BOTH, around 15 each.
+    "The front line has not moved in six months"    -> ua 15, ru 15
+    "Positions unchanged along the eastern front"   -> ua 15, ru 15
 
-ru: 0-100. How strongly does this headline portray RUSSIA as gaining, succeeding,
-  strengthening, or Ukraine as failing, weakening or losing ground?
+  Do not confuse either with MUTUAL ATTRITION, where both sides materially suffered.
+  That scores moderately on BOTH, around 50 each:
+    "Both armies took heavy casualties in the battle for the town"  -> ua 50, ru 50
 
-attributed: true if the claim is presented as coming from a named party rather than
-  in the publication's own voice.
+  So a deadlocked front reads three ways: 55/10 when a named attacker failed,
+  15/15 when nobody's effort is named, and 50/50 when both sides are being ground
+  down. These are different states and must not be merged.
 
-  Apply this test in order:
-  1. Does the headline name a person, government, ministry, army or organisation as
-     the source of the claim? This includes the "Name: claim" colon form, which is
-     ALWAYS attributed.
-  2. Does it use reported speech, or a verb such as says, claims, denies, announces,
-     accuses, comments, warns?
-  3. Are quotation marks placed around a contested term or a whole claim?
-  If any of the three is yes, attributed is true. Otherwise false.
+  Mark relevant TRUE for DEFENSIVE SUCCESS, which is easy to miss because it sounds
+  passive. "Ukraine repelled 49 attacks", "Russia's offensive has stalled",
+  "advance halted", "attack repulsed with heavy losses", "forces held the line"
+  are all real changes and score for the DEFENDER.
 
-  The underlying question: if the claim turned out to be false, would the publication
-  have been wrong, or would the named party have been wrong? If the party, attributed.
+WHOSE OUTCOME IS IT? Three rules that decide direction.
 
-ua and ru are INDEPENDENT. Do not make them sum to 100. A headline describing heavy
-losses on both sides may score high on neither. A contested claim may score moderately
-on both. Score what the headline ASSERTS OR IMPLIES, not whether it is true.
-An irrelevant headline gets ua 0 and ru 0.
+  FIRST, IDENTIFY WHO DID WHAT. Before scoring, work out which side performed the
+  action and which side it happened to. Do not rely on which side is named first or
+  named more often. Retreats, admissions, withdrawals and losses are especially easy
+  to invert, because both sides are usually named in the same sentence.
+    "Russians admitted retreat from a key city"
+      -> Russia retreated, so this is a UKRAINIAN gain -> ua 70, ru 10
+    "Ukrainians explain how they tricked the Russians"
+      -> Ukraine succeeded -> ua 60, ru 0
+    "Ukrainian forces withdrew from Avdiivka"
+      -> Ukraine retreated, so this is a RUSSIAN gain -> ru 75, ua 10
+  An admission by one side that it lost ground scores for the OTHER side, and the
+  fact that it is an admission makes it stronger evidence, not weaker.
+
+  LOSSES COUNT AGAINST THE SIDE SUFFERING THEM. Russia losing men or equipment is a
+  Ukrainian outcome and scores on ua. Ukraine losing them scores on ru. Do not score
+  losses for whoever is merely named first or named most.
+    "Russia suffers staggering losses"        -> ua high, ru 0
+    "Ukraine takes heavy casualties"          -> ru high, ua 0
+    "Russian armoured column destroyed"       -> ua high, ru 0
+
+  IN A HEADLINE WITH TWO CLAUSES, THE MAIN CLAUSE DECIDES. Words like despite,
+  although, even as, while and but subordinate what follows them. Score the main
+  clause and let the subordinate clause only soften the other side's number.
+    "Russia suffers staggering losses despite Ukraine's supply shortages"
+      -> main clause is Russian losses -> ua 75, ru 20
+    "Ukraine advances despite heavy casualties"
+      -> main clause is the advance -> ua 65, ru 20
+    "Although Russia captured the village, its losses were severe"
+      -> main clause is the losses -> ua 45, ru 35
+
+ua: 0-100. How strongly does this headline show UKRAINE achieving an outcome that
+  improves its position, or Russia suffering one that worsens Russia's?
+
+ru: 0-100. How strongly does this headline show RUSSIA achieving an outcome that
+  improves its position, or Ukraine suffering one that worsens Ukraine's?
+
+  Scale by what actually changed, not by how important the place is:
+    85-100  a city or a large area changes hands; an offensive collapses
+    60-80   a town changes hands; a major offensive is halted; a significant
+            capability is gained or destroyed
+    35-55   a village or a small position changes hands; local attacks repelled
+    10-30   a marginal or contested change, or a claim heavily hedged
+    0       no outcome for that side
+
+  ua and ru are INDEPENDENT and do not sum to 100. Heavy losses on both sides may
+  score high on neither. A contested claim may score moderately on both.
+  An irrelevant headline gets ua 0 and ru 0.
+
+source: who is making the claim. Exactly one of:
+  "publication"  the outlet states it in its own voice, including its own reporters
+                 and photographers as witnesses.
+                 "Reuters journalists saw Russian flags in the town centre"
+                 "Ukrainian forces withdrew from Avdiivka"
+  "belligerent"  a party to this war or its officials: the Ukrainian or Russian
+                 government, presidency, defence ministry, general staff, army,
+                 occupation authorities, or their spokespeople and state media.
+                 These have a direct interest in the claim being believed.
+                 "Russian defence ministry says its forces captured Novoselivka"
+                 "Zelensky says the front is stabilising"
+  "analyst"      an independent third party with no direct stake in this war's
+                 outcome: research institutes, foreign defence intelligence,
+                 named academics, non-belligerent governments.
+                 "ISW says Russia's summer offensive has stalled"
+                 "British Defence Intelligence reported shifting front lines"
+
+  This distinction matters and must not be collapsed. A belligerent claiming its own
+  success is weak evidence. An independent analyst saying the same thing is strong
+  evidence. Do not mark ISW, Reuters or a foreign intelligence service as belligerent
+  just because they are named.
+
+attributed: true when source is "belligerent" or "analyst", false when "publication".
+
+Score what the headline ASSERTS OR IMPLIES, not whether it is true.
 
 Return ONLY a JSON array, one object per headline, in order:
-[{"i":1,"relevant":true,"ua":70,"ru":10,"attributed":false}]
+[{"i":1,"kind":"territory","relevant":true,"ua":70,"ru":10,"source":"publication","attributed":false}]
 No preamble, no markdown fences.
