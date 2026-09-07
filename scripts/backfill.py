@@ -31,7 +31,7 @@ RUBRIC_HASH = hashlib.sha256(RUBRIC.encode()).hexdigest()[:12]
 
 MODEL       = "gemma-4-31b-it"
 TEMPERATURE = 0
-BATCH       = 50
+BATCH       = int(os.environ.get("BATCH", "50"))
 PER_DAY     = 400
 DOMAIN_CAP  = 3
 START       = "2022-01-01"
@@ -42,7 +42,9 @@ GAP         = 13          # seconds between requests, keeps us under 16k TPM
 
 STEP = {"monthly": None, "10daily": 10, "weekly": 7, "every3rd": 3, "daily": 1}[PHASE]
 
-client = genai.Client(api_key=os.environ["GEMINI_KEY"])
+REQ_TIMEOUT_MS = int(os.environ.get("REQ_TIMEOUT_S", "150")) * 1000
+client = genai.Client(api_key=os.environ["GEMINI_KEY"],
+                      http_options=types.HttpOptions(timeout=REQ_TIMEOUT_MS))
 bq     = bigquery.Client.from_service_account_json(
              os.environ["GCP_SA_KEY_FILE"], project=PROJECT)
 
@@ -119,10 +121,12 @@ class DeadKey(Exception):
 def score(batch, retries=4):
     listing = "\n".join(f"{i+1}. {h['title']}" for i, h in enumerate(batch))
     for a in range(retries):
+        t_req = time.time()
         try:
             r = client.models.generate_content(
                 model=MODEL, contents=RUBRIC + "\n\nHeadlines:\n" + listing,
-                config=types.GenerateContentConfig(temperature=TEMPERATURE))
+                config=types.GenerateContentConfig(
+                    temperature=TEMPERATURE, max_output_tokens=8192))
             arr = json.loads(re.search(r"\[[\s\S]*\]",
                   r.text.replace("```json", "").replace("```", "")).group(0))
             out = {}
@@ -133,9 +137,11 @@ def score(batch, retries=4):
                         "rel": bool(o.get("relevant")), "ua": float(o.get("ua", 0)),
                         "ru": float(o.get("ru", 0)), "attr": bool(o.get("attributed")),
                         "lang": batch[i]["lang"]}
+            print(f"      ok in {time.time()-t_req:.0f}s", flush=True)
             return out
         except Exception as e:
             msg = str(e)
+            print(f"      failed after {time.time()-t_req:.0f}s", flush=True)
             # never retry an auth failure, waiting cannot fix it
             if "401" in msg or "403" in msg or "UNAUTHENTICATED" in msg:
                 raise DeadKey(msg[:200])
