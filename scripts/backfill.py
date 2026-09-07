@@ -38,7 +38,7 @@ START       = "2022-01-01"
 PROJECT     = "ukraine-russia-sentiment"
 PHASE       = os.environ.get("PHASE", "monthly")
 BUDGET      = int(os.environ.get("BUDGET_MIN", "320")) * 60
-GAP         = 13          # seconds between requests, keeps us under 16k TPM
+GAP         = int(os.environ.get("GAP_S", "20"))   # seconds between requests
 
 STEP = {"monthly": None, "10daily": 10, "weekly": 7, "every3rd": 3, "daily": 1}[PHASE]
 
@@ -195,13 +195,20 @@ def main():
         print(f"  BigQuery OK ({n})", flush=True)
     except Exception as e:
         sys.exit(f"BigQuery failed: {str(e)[:200]}")
-    try:
-        r = client.models.generate_content(
-            model=MODEL, contents="Reply with the single word OK",
-            config=types.GenerateContentConfig(temperature=0))
-        print(f"  Gemini OK ({r.text.strip()[:20]})", flush=True)
-    except Exception as e:
-        sys.exit(f"Gemini failed: {str(e)[:200]}")
+    for attempt in range(4):
+        try:
+            r = client.models.generate_content(
+                model=MODEL, contents="Reply with the single word OK",
+                config=types.GenerateContentConfig(temperature=0))
+            print(f"  Gemini OK ({r.text.strip()[:20]})", flush=True)
+            break
+        except Exception as e:
+            if "401" in str(e) or "403" in str(e):
+                sys.exit(f"Gemini auth failed: {str(e)[:200]}")
+            print(f"  Gemini attempt {attempt+1}/4 failed: {str(e)[:110]}", flush=True)
+            if attempt == 3:
+                sys.exit("Gemini unreachable after 4 attempts, their end. Try again later.")
+            time.sleep(20 * (attempt + 1))
 
     store = json.loads(DATA.read_text()) if DATA.exists() else {"meta": {}, "daily": {}}
     if store["meta"].get("rubric") and store["meta"]["rubric"] != RUBRIC_HASH:
