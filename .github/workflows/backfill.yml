@@ -74,14 +74,20 @@ jobs:
           fi
 
       - name: Chain another run if work remains
-        if: ${{ inputs.chain != 'false' }}
+        # success() is explicit: a failed run must never trigger another one.
+        if: ${{ success() && inputs.chain != 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REMAIN=$(cat data/.remaining 2>/dev/null || echo 0)
-          echo "days remaining: $REMAIN"
-          if [ -f data/.quota_stopped ]; then
-            echo "stopped on daily quota, not chaining. The 06:15 UTC schedule continues tomorrow."
+          DID=$(cat data/.progress 2>/dev/null || echo 0)
+          echo "dates completed this run: $DID, remaining: $REMAIN"
+          # The progress guard is what stops a runaway chain. A run that achieved
+          # nothing cannot trigger another, so a fast-failing loop dies after one.
+          if [ "$DID" -eq 0 ]; then
+            echo "this run completed no dates, so not chaining. Something needs looking at."
+          elif [ -f data/.quota_stopped ]; then
+            echo "stopped on the daily quota, not chaining. The 08:30 UTC schedule continues tomorrow."
           elif [ "$REMAIN" -gt 0 ]; then
             gh workflow run backfill.yml -f phase="${{ inputs.phase || 'daily' }}" -f chain=true
           else
