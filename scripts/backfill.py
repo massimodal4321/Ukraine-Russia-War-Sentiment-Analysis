@@ -35,25 +35,33 @@ TEMPERATURE = 0
 # occasionally truncate, corrupt an object, or draw a 500 from the API, so the parser
 # below salvages whatever came back rather than discarding the request. Drop to 200 if
 # the log ever shows failures on a large share of days.
-BATCH       = int(os.environ.get("BATCH", "400"))
-PER_DAY     = 400
+BATCH       = int(os.environ.get("BATCH", "1200"))
+# Measured ceiling: one reply holds about 1,386 scored headlines before the model's
+# 65,536 output-token limit truncates it. 1,200 came back whole and 100% correct in
+# every third of the batch, with no attention thinning. 1,600 truncated at 1,382.
+PER_DAY     = 1200
 # 400 objects measured at 11,893 output tokens with compact keys; this rubric's longer
 # keys run higher, so the cap is set well clear of it. 8192 was the old value and it
 # silently truncated the response mid-array.
-MAX_OUT     = 24000
+# 1,200 headlines measured at 56,721 output tokens, so the cap has to be the model's
+# maximum. 24,000 would have truncated every single reply.
+MAX_OUT     = 65536
 DOMAIN_CAP  = 3
+BQ_GB       = 0.0        # running total of BigQuery bytes billed, for the log
 START       = "2022-01-01"
 PROJECT     = "ukraine-russia-sentiment"
 PHASE       = os.environ.get("PHASE", "monthly")
 BUDGET      = int(os.environ.get("BUDGET_MIN", "320")) * 60
-GAP         = int(os.environ.get("GAP_S", "12"))   # seconds between requests.
+GAP         = int(os.environ.get("GAP_S", "10"))   # seconds between requests.
 # At batch 400 a request carries roughly 19k input and up to 18k output tokens. Five a
 # minute is about 74% of the 250k tokens-a-minute ceiling, which leaves room for a retry
 # without tripping the limit. Eight seconds would sit at 111% and fail.
 
 STEP = {"monthly": None, "10daily": 10, "weekly": 7, "every3rd": 3, "daily": 1}[PHASE]
 
-REQ_TIMEOUT_MS = int(os.environ.get("REQ_TIMEOUT_S", "150")) * 1000
+# A 1,200-headline reply takes about 110 seconds. The old default of 150 left almost
+# no headroom, so a slow reply would have timed out and burned a retry.
+REQ_TIMEOUT_MS = int(os.environ.get("REQ_TIMEOUT_S", "420")) * 1000
 client = genai.Client(api_key=os.environ["GEMINI_KEY"],
                       http_options=types.HttpOptions(timeout=REQ_TIMEOUT_MS))
 bq     = bigquery.Client.from_service_account_json(
@@ -119,7 +127,15 @@ def pull(day):
         bigquery.ScalarQueryParameter("cap", "INT64", DOMAIN_CAP),
         bigquery.ScalarQueryParameter("lim", "INT64", PER_DAY * 3)])
     out, seen = [], set()
-    for r in bq.query(SQL, job_config=cfg).result():
+    job = bq.query(SQL, job_config=cfg)
+    rows = job.result()
+    # BigQuery bills on bytes scanned. Reporting it per query and cumulatively means
+    # the monthly allowance running out is something you can watch approaching rather
+    # than something that surprises the run.
+    global BQ_GB
+    gb = (job.total_bytes_billed or 0) / (1024 ** 3)
+    BQ_GB += gb
+    for r in rows:
         c = clean_title(r["title"])
         if not c or len(c) < 20:
             continue
@@ -129,7 +145,8 @@ def pull(day):
         seen.add(k)
         out.append({"title": c, "source": r["source"], "url": r["url"],
                     "lang": langid.classify(c)[0]})
-    print(f"  {day}: {len(out)} clean headlines", flush=True)
+    print(f"  {day}: {len(out)} clean headlines, "
+          f"{gb:.2f} GB scanned, {BQ_GB:.1f} GB this run", flush=True)
     return out[:PER_DAY]
 
 # ---------------------------------------------------------------- scoring
@@ -278,7 +295,7 @@ def main():
     print(f"{len(days)} days in range, {len(store['daily'])} done, {len(todo)} to go")
     print(f"budget {BUDGET//60} min\n", flush=True)
 
-    t0, done = time.time(), 0
+    t0, done, in_a_row = time.time(), 0, 0
     for day in todo:
         if time.time() - t0 > BUDGET:
             print(f"\nbudget reached after {done} days, stopping cleanly")
@@ -359,6 +376,7 @@ def main():
             el = (time.time() - t0) / 60
             print(f"{day}  ua {d['ua']:5.1f}  ru {d['ru']:5.1f}  n={d['n']:3}  "
                   f"[{done}/{len(todo)}] {el:.0f}m elapsed", flush=True)
+            in_a_row = 0
         except DeadKey as e:
             sys.exit(f"AUTH FAILED, not retrying: {e}")
         except QuotaOut as e:
@@ -367,10 +385,34 @@ def main():
             (ROOT / "data" / ".quota_stopped").write_text("1")
             break
         except Exception as e:
-            print(f"{day}  ERROR {str(e)[:120]}", flush=True)
+            msg = str(e)
+            print(f"{day}  ERROR {msg[:120]}", flush=True)
+            # BigQuery's monthly free allowance is a hard stop, not a transient fault.
+            # Grinding through the remaining dates at 15s each would waste hours and
+            # achieve nothing, so recognise it and stop.
+            if ("quota" in msg.lower() and "bytes" in msg.lower()) or \
+               "Quota exceeded" in msg or "billing" in msg.lower():
+                print(f"\nBIGQUERY ALLOWANCE EXHAUSTED after {BQ_GB:.0f} GB this run.")
+                print("Stopping cleanly. Everything scored so far is saved.")
+                print("Two ways on: enable billing on the project, which costs about")
+                print("30 cents for the rest of this backfill and keeps the 1 TiB free")
+                print("allowance every month, or wait for the 1st. Either way the")
+                print("scheduled run continues from here with nothing to do by hand.")
+                (ROOT / "data" / ".quota_stopped").write_text("bigquery")
+                break
+            in_a_row += 1
+            if in_a_row >= 10:
+                print(f"\n10 dates failed in a row, stopping rather than grinding on.")
+                print("Progress is saved. Something needs looking at.")
+                break
             time.sleep(15)
 
-    remaining = len([d for d in days if d not in store["daily"]])
+    # Empty dates have to be excluded here too. Counting them meant "remaining" could
+    # never reach zero once GDELT had a gap, so the chain would fire one pointless run
+    # every day for ever, exactly the loop that burned the monthly phase.
+    empty_now = set(store.get("meta", {}).get("empty", []))
+    remaining = len([d for d in days
+                     if d not in store["daily"] and d not in empty_now])
     (ROOT / "data" / ".remaining").write_text(str(remaining))
     (ROOT / "data" / ".progress").write_text(str(done))
     print(f"\n{len(store['daily'])}/{len(days)} days complete for phase {PHASE}")
