@@ -1,0 +1,122 @@
+[
+ {
+  "d": "2022-02-24",
+  "tier": 1,
+  "label": "Russia invades Ukraine",
+  "short": "Russia invades"
+ },
+ {
+  "d": "2022-04-02",
+  "tier": 1,
+  "label": "Russia retreats from around Kyiv",
+  "short": "Russia retreats from Kyiv"
+ },
+ {
+  "d": "2022-05-20",
+  "tier": 1,
+  "label": "Russia captures Mariupol",
+  "short": "Russia captures Mariupol"
+ },
+ {
+  "d": "2022-07-03",
+  "tier": 2,
+  "label": "Russia captures Lysychansk, completing Luhansk",
+  "short": "Russia captures Lysychansk"
+ },
+ {
+  "d": "2022-09-06",
+  "tier": 1,
+  "label": "Ukraine retakes Kharkiv oblast",
+  "short": "Ukraine retakes Kharkiv"
+ },
+ {
+  "d": "2022-10-08",
+  "tier": 2,
+  "label": "Ukraine strikes the Kerch bridge",
+  "short": "Ukraine strikes Kerch bridge"
+ },
+ {
+  "d": "2022-10-10",
+  "tier": 2,
+  "label": "Russia begins striking the power grid",
+  "short": "Russia strikes power grid"
+ },
+ {
+  "d": "2022-11-11",
+  "tier": 1,
+  "label": "Ukraine retakes Kherson",
+  "short": "Ukraine retakes Kherson"
+ },
+ {
+  "d": "2023-05-20",
+  "tier": 1,
+  "label": "Russia captures Bakhmut",
+  "short": "Russia captures Bakhmut"
+ },
+ {
+  "d": "2023-06-06",
+  "tier": 2,
+  "label": "Kakhovka dam destroyed",
+  "short": "Kakhovka dam destroyed"
+ },
+ {
+  "d": "2023-06-08",
+  "tier": 1,
+  "label": "Ukraine's 2023 counteroffensive begins",
+  "short": "Ukraine's 2023 offensive"
+ },
+ {
+  "d": "2023-06-24",
+  "tier": 2,
+  "label": "Wagner mutiny against Moscow",
+  "short": "Wagner mutiny"
+ },
+ {
+  "d": "2023-08-23",
+  "tier": 2,
+  "label": "Prigozhin killed in a plane crash",
+  "short": "Prigozhin killed"
+ },
+ {
+  "d": "2024-02-17",
+  "tier": 1,
+  "label": "Russia captures Avdiivka",
+  "short": "Russia captures Avdiivka"
+ },
+ {
+  "d": "2024-05-10",
+  "tier": 2,
+  "label": "Russia opens a new front at Kharkiv",
+  "short": "Russia opens Kharkiv front"
+ },
+ {
+  "d": "2024-08-06",
+  "tier": 1,
+  "label": "Ukraine crosses into Kursk",
+  "short": "Ukraine crosses into Kursk"
+ },
+ {
+  "d": "2025-01-06",
+  "tier": 2,
+  "label": "Russia captures Kurakhove",
+  "short": "Russia captures Kurakhove"
+ },
+ {
+  "d": "2025-03-11",
+  "tier": 1,
+  "label": "Ukraine withdraws from Kursk",
+  "short": "Ukraine withdraws from Kursk"
+ },
+ {
+  "d": "2026-02-11",
+  "tier": 1,
+  "label": "Ukraine counterattacks in Zaporizhzhia",
+  "short": "Ukraine's 2026 counterattack"
+ },
+ {
+  "d": "2026-06-01",
+  "tier": 2,
+  "label": "Russia's summer offensive stalls",
+  "short": "Russian offensive stalls"
+ }
+]
