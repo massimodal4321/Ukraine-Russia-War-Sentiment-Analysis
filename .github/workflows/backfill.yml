@@ -1,12 +1,15 @@
 name: Backfill
 
 on:
+  # runs itself once a day so the free-tier quota resets between runs
+  schedule:
+    - cron: "30 8 * * *"
   workflow_dispatch:
     inputs:
       phase:
         description: "Sampling density"
         required: true
-        default: monthly
+        default: daily
         type: choice
         options: [monthly, 10daily, weekly, every3rd, daily]
       chain:
@@ -45,19 +48,19 @@ jobs:
         env:
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           GCP_SA_KEY_FILE: /tmp/sa.json
-          PHASE: ${{ inputs.phase }}
+          PHASE: ${{ inputs.phase || 'daily' }}
           BUDGET_MIN: "320"
           MODEL: "gemini-3.5-flash-lite"
-          BATCH: "100"
+          BATCH: "400"
           REQ_TIMEOUT_S: "240"
-          GAP_S: "5"
+          GAP_S: "12"
         run: python scripts/backfill.py
 
       - name: Commit
         run: |
           git config user.name  "backfill-bot"
           git config user.email "actions@github.com"
-          git add data/daily.json data/.remaining
+          git add data/daily.json data/.remaining data/.quota_stopped data/days || true
           if git diff --staged --quiet; then
             echo "nothing new"
           else
@@ -67,14 +70,16 @@ jobs:
           fi
 
       - name: Chain another run if work remains
-        if: ${{ inputs.chain == 'true' }}
+        if: ${{ inputs.chain != 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REMAIN=$(cat data/.remaining 2>/dev/null || echo 0)
           echo "days remaining: $REMAIN"
-          if [ "$REMAIN" -gt 0 ]; then
-            gh workflow run backfill.yml -f phase=${{ inputs.phase }} -f chain=true
+          if [ -f data/.quota_stopped ]; then
+            echo "stopped on daily quota, not chaining. The 06:15 UTC schedule continues tomorrow."
+          elif [ "$REMAIN" -gt 0 ]; then
+            gh workflow run backfill.yml -f phase="${{ inputs.phase || 'daily' }}" -f chain=true
           else
-            echo "phase complete"
+            echo "phase complete, nothing left"
           fi
