@@ -100,9 +100,16 @@ ded AS (
   GROUP BY LOWER(REGEXP_REPLACE(title, r'[^a-zA-Z0-9 ]', ''))
 ),
 capped AS (
-  SELECT *, ROW_NUMBER() OVER (PARTITION BY source ORDER BY RAND()) rn FROM ded
+  SELECT *, ROW_NUMBER() OVER
+    (PARTITION BY source ORDER BY FARM_FINGERPRINT(CONCAT(url, 'cap'))) rn FROM ded
 )
-SELECT url, source, title FROM capped WHERE rn <= @cap ORDER BY RAND() LIMIT @lim
+-- Deterministic sampling. RAND() drew a different 400 headlines on every run, so the
+-- same date scored differently each time and the dataset could not be reproduced.
+-- FARM_FINGERPRINT gives a stable pseudo-random order keyed to the article URL, so the
+-- same 400 are chosen every time. The two salts keep the per-domain cap and the final
+-- pick from correlating with each other.
+SELECT url, source, title FROM capped WHERE rn <= @cap
+ORDER BY FARM_FINGERPRINT(CONCAT(url, 'pick')) LIMIT @lim
 """
 
 def pull(day):
@@ -234,6 +241,9 @@ def main():
     q = ROOT / "data" / ".quota_stopped"
     if q.exists():
         q.unlink()
+    # A record of what this run achieved. The chain refuses to fire when it is zero,
+    # which makes a runaway loop of fast-failing runs impossible.
+    (ROOT / "data" / ".progress").write_text("0")
     print("checking connections...", flush=True)
     try:
         n = list(bq.query("SELECT 1 AS ok").result())[0].ok
@@ -262,7 +272,8 @@ def main():
                  f"to re-score, or restore the old rubric.")
 
     days = day_list()
-    todo = [d for d in days if d not in store["daily"]]
+    empty = set(store.get("meta", {}).get("empty", []))
+    todo = [d for d in days if d not in store["daily"] and d not in empty]
     print(f"phase={PHASE} rubric={RUBRIC_HASH} model={MODEL}")
     print(f"{len(days)} days in range, {len(store['daily'])} done, {len(todo)} to go")
     print(f"budget {BUDGET//60} min\n", flush=True)
@@ -275,7 +286,18 @@ def main():
         try:
             items = pull(day)
             if len(items) < 30:
-                print(f"{day}  only {len(items)} headlines, skipped", flush=True)
+                # GDELT genuinely has no coverage on some dates. Recording it means the
+                # date leaves the queue. Leaving it unrecorded kept "remaining" above
+                # zero for ever, and the chain kept launching runs to retry a date that
+                # can never succeed, each lap costing a partition scan and a request.
+                store["meta"].setdefault("empty", [])
+                if day not in store["meta"]["empty"]:
+                    store["meta"]["empty"].append(day)
+                    store["meta"]["empty"].sort()
+                    DATA.write_text(json.dumps(store, separators=(",", ":"),
+                                               sort_keys=True))
+                print(f"{day}  only {len(items)} headlines, recorded as empty",
+                      flush=True)
                 continue
             S, complete = score_day(items)
             if not complete:
@@ -350,6 +372,7 @@ def main():
 
     remaining = len([d for d in days if d not in store["daily"]])
     (ROOT / "data" / ".remaining").write_text(str(remaining))
+    (ROOT / "data" / ".progress").write_text(str(done))
     print(f"\n{len(store['daily'])}/{len(days)} days complete for phase {PHASE}")
     print(f"remaining: {remaining}")
 
