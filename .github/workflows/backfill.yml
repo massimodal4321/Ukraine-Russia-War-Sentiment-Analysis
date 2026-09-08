@@ -60,7 +60,11 @@ jobs:
         run: |
           git config user.name  "backfill-bot"
           git config user.email "actions@github.com"
-          git add data/daily.json data/.remaining data/.quota_stopped data/days || true
+          # -A on the directory, not a list of paths. A named path that does not exist
+          # makes git add fail and stage NOTHING, which silently threw away a whole
+          # run's work: .quota_stopped only exists when a run stops on quota, so any
+          # run that stopped on the time budget committed nothing at all.
+          git add -A data
           if git diff --staged --quiet; then
             echo "nothing new"
           else
