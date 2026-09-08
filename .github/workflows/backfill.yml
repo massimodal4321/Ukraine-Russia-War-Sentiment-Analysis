@@ -51,9 +51,9 @@ jobs:
           PHASE: ${{ inputs.phase || 'daily' }}
           BUDGET_MIN: "320"
           MODEL: "gemini-3.5-flash-lite"
-          BATCH: "400"
-          REQ_TIMEOUT_S: "240"
-          GAP_S: "12"
+          BATCH: "1200"
+          REQ_TIMEOUT_S: "420"
+          GAP_S: "10"
         run: python scripts/backfill.py
 
       - name: Commit
