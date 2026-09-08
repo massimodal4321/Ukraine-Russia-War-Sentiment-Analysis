@@ -31,7 +31,11 @@ RUBRIC_HASH = hashlib.sha256(RUBRIC.encode()).hexdigest()[:12]
 
 MODEL       = os.environ.get("MODEL", "gemini-3.5-flash-lite")
 TEMPERATURE = 0
-BATCH       = int(os.environ.get("BATCH", "400"))   # tested: 400/400 correct, no drift
+# 400 tested at 400/400 correct with no positional drift. Long generations do
+# occasionally truncate, corrupt an object, or draw a 500 from the API, so the parser
+# below salvages whatever came back rather than discarding the request. Drop to 200 if
+# the log ever shows failures on a large share of days.
+BATCH       = int(os.environ.get("BATCH", "400"))
 PER_DAY     = 400
 # 400 objects measured at 11,893 output tokens with compact keys; this rubric's longer
 # keys run higher, so the cap is set well clear of it. 8192 was the old value and it
@@ -43,9 +47,9 @@ PROJECT     = "ukraine-russia-sentiment"
 PHASE       = os.environ.get("PHASE", "monthly")
 BUDGET      = int(os.environ.get("BUDGET_MIN", "320")) * 60
 GAP         = int(os.environ.get("GAP_S", "12"))   # seconds between requests.
-# At batch 400 one request carries roughly 19k input and up to 18k output tokens. Six
-# requests a minute would run at about 89% of the 250k tokens-a-minute ceiling, which is
-# too close, so the gap is 12s: five a minute, about 74%.
+# At batch 400 a request carries roughly 19k input and up to 18k output tokens. Five a
+# minute is about 74% of the 250k tokens-a-minute ceiling, which leaves room for a retry
+# without tripping the limit. Eight seconds would sit at 111% and fail.
 
 STEP = {"monthly": None, "10daily": 10, "weekly": 7, "every3rd": 3, "daily": 1}[PHASE]
 
@@ -138,8 +142,29 @@ def score(batch, retries=4):
                 model=MODEL, contents=RUBRIC + "\n\nHeadlines:\n" + listing,
                 config=types.GenerateContentConfig(
                     temperature=TEMPERATURE, max_output_tokens=MAX_OUT))
-            arr = json.loads(re.search(r"\[[\s\S]*\]",
-                  r.text.replace("```json", "").replace("```", "")).group(0))
+            txt = (r.text or "").replace("```json", "").replace("```", "")
+            # One malformed object used to throw away the whole day and burn a retry.
+            # Try the array first; if it will not parse, take every object that will,
+            # and report what broke so the cause is visible in the log.
+            arr, salvaged = None, False
+            m = re.search(r"\[[\s\S]*\]", txt)
+            if m:
+                try:
+                    arr = json.loads(m.group(0))
+                except json.JSONDecodeError as je:
+                    at = getattr(je, "pos", 0)
+                    print(f"      malformed JSON at char {at}: "
+                          f"{m.group(0)[max(0,at-70):at+70]!r}", flush=True)
+            if arr is None:
+                arr = []
+                for o in re.findall(r"\{[^{}]*\}", txt):
+                    try:
+                        arr.append(json.loads(o))
+                    except Exception:
+                        pass
+                salvaged = True
+                if not arr:
+                    raise ValueError("no parseable objects in the response")
             out = {}
             for o in arr:
                 i = int(o.get("i", 0)) - 1
@@ -151,7 +176,8 @@ def score(batch, retries=4):
                         "kind": str(o.get("kind", "other")),
                         "src": str(o.get("source", "publication")),
                         "lang": batch[i]["lang"]}
-            print(f"      ok in {time.time()-t_req:.0f}s", flush=True)
+            note = f", salvaged {len(arr)} of {len(batch)}" if salvaged else ""
+            print(f"      ok in {time.time()-t_req:.0f}s{note}", flush=True)
             return out
         except Exception as e:
             msg = str(e)
