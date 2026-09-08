@@ -31,14 +31,21 @@ RUBRIC_HASH = hashlib.sha256(RUBRIC.encode()).hexdigest()[:12]
 
 MODEL       = os.environ.get("MODEL", "gemini-3.5-flash-lite")
 TEMPERATURE = 0
-BATCH       = int(os.environ.get("BATCH", "50"))
+BATCH       = int(os.environ.get("BATCH", "400"))   # tested: 400/400 correct, no drift
 PER_DAY     = 400
+# 400 objects measured at 11,893 output tokens with compact keys; this rubric's longer
+# keys run higher, so the cap is set well clear of it. 8192 was the old value and it
+# silently truncated the response mid-array.
+MAX_OUT     = 24000
 DOMAIN_CAP  = 3
 START       = "2022-01-01"
 PROJECT     = "ukraine-russia-sentiment"
 PHASE       = os.environ.get("PHASE", "monthly")
 BUDGET      = int(os.environ.get("BUDGET_MIN", "320")) * 60
-GAP         = int(os.environ.get("GAP_S", "20"))   # seconds between requests
+GAP         = int(os.environ.get("GAP_S", "12"))   # seconds between requests.
+# At batch 400 one request carries roughly 19k input and up to 18k output tokens. Six
+# requests a minute would run at about 89% of the 250k tokens-a-minute ceiling, which is
+# too close, so the gap is 12s: five a minute, about 74%.
 
 STEP = {"monthly": None, "10daily": 10, "weekly": 7, "every3rd": 3, "daily": 1}[PHASE]
 
@@ -130,7 +137,7 @@ def score(batch, retries=4):
             r = client.models.generate_content(
                 model=MODEL, contents=RUBRIC + "\n\nHeadlines:\n" + listing,
                 config=types.GenerateContentConfig(
-                    temperature=TEMPERATURE, max_output_tokens=8192))
+                    temperature=TEMPERATURE, max_output_tokens=MAX_OUT))
             arr = json.loads(re.search(r"\[[\s\S]*\]",
                   r.text.replace("```json", "").replace("```", "")).group(0))
             out = {}
@@ -138,6 +145,7 @@ def score(batch, retries=4):
                 i = int(o.get("i", 0)) - 1
                 if 0 <= i < len(batch):
                     out[batch[i]["title"]] = {
+                        "url": batch[i]["url"], "dom": batch[i]["source"],
                         "rel": bool(o.get("relevant")), "ua": float(o.get("ua", 0)),
                         "ru": float(o.get("ru", 0)), "attr": bool(o.get("attributed")),
                         "kind": str(o.get("kind", "other")),
@@ -197,6 +205,9 @@ def day_list():
 
 # ---------------------------------------------------------------- main
 def main():
+    q = ROOT / "data" / ".quota_stopped"
+    if q.exists():
+        q.unlink()
     print("checking connections...", flush=True)
     try:
         n = list(bq.query("SELECT 1 AS ok").result())[0].ok
@@ -276,6 +287,25 @@ def main():
                              "per_day": PER_DAY, "batch": BATCH, "domain_cap": DOMAIN_CAP,
                              "updated": dt.datetime.now(dt.timezone.utc).isoformat()}
             DATA.write_text(json.dumps(store, separators=(",", ":"), sort_keys=True))
+
+            # The day file: what the site shows when a reader opens this date. Kept in
+            # its own file so the main series stays small and only the day someone
+            # actually opens is fetched. Dropped headlines are capped, because keeping
+            # all 400 a day would run to roughly 100 MB across the whole backfill.
+            trim = lambda x, n=180: x[:n]
+            row = store["daily"][day]
+            scored = [{"t": trim(t), "u": S[t]["ua"], "v": S[t]["ru"], "k": S[t]["kind"],
+                       "q": S[t]["src"], "l": S[t]["lang"], "d": S[t]["dom"], "h": S[t]["url"]}
+                      for t in sorted(rel, key=lambda t: -(S[t]["ua"] - S[t]["ru"]))]
+            dropped = [{"t": trim(t), "d": S[t]["dom"], "l": S[t]["lang"], "h": S[t]["url"]}
+                       for t in [x for x in S if not S[x]["rel"]][:25]]
+            daydir = ROOT / "data" / "days"
+            daydir.mkdir(parents=True, exist_ok=True)
+            (daydir / f"{day}.json").write_text(json.dumps(
+                {"d": day, "ua": row["ua"], "ru": row["ru"], "n": row["n"],
+                 "sampled": row["sampled"], "dropped_total": row["sampled"] - row["n"],
+                 "scored": scored, "dropped": dropped}, separators=(",", ":")))
+
             done += 1
             d = store["daily"][day]
             el = (time.time() - t0) / 60
@@ -285,7 +315,8 @@ def main():
             sys.exit(f"AUTH FAILED, not retrying: {e}")
         except QuotaOut as e:
             print(f"\nDAILY QUOTA REACHED after {done} days. Stopping cleanly.")
-            print("Progress is saved. Re-run tomorrow to continue.")
+            print("Progress is saved. The scheduled run tomorrow will continue.")
+            (ROOT / "data" / ".quota_stopped").write_text("1")
             break
         except Exception as e:
             print(f"{day}  ERROR {str(e)[:120]}", flush=True)
