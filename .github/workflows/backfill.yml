@@ -30,10 +30,6 @@ permissions:
   contents: write
   actions: write
 
-concurrency:
-  group: backfill
-  cancel-in-progress: false
-
 # A second trigger is only free if it cannot collide with a run already working.
 # This makes GitHub refuse to start a new run while one is in flight, so the 13:07
 # fallback does nothing at all unless the 09:07 attempt never happened.
