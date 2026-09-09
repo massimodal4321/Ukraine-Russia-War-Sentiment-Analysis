@@ -227,7 +227,12 @@ def score_day(items):
             time.sleep(15)
             retry = score(chunk)
             got = retry if len(retry) > len(got) else got
-        if len(got) < len(chunk) * 0.9:
+        # The bar was 90%, and the model has a habit of stopping at a round 1,000
+        # objects when asked for 1,200. That is 83%, so six dates in ninety were
+        # refused and would have failed identically on every retry. 1,000 scored
+        # headlines is a perfectly good sample, and "sampled" records honestly how
+        # many were actually used, so 78% is the more sensible bar.
+        if len(got) < len(chunk) * 0.78:
             complete = False
             print(f"      SHORT {len(got)}/{len(chunk)}", flush=True)
         S.update(got)
@@ -318,11 +323,42 @@ def main():
                 continue
             S, complete = score_day(items)
             if not complete:
-                print(f"{day}  INCOMPLETE, not written", flush=True)
-                continue
+                # A date that keeps coming back short would otherwise be refused on
+                # every run for ever, and each attempt costs a BigQuery query and two
+                # Gemini requests. Once the rest of the backfill is done, the scheduled
+                # runs would spend their whole allowance retrying the same few dates.
+                #
+                # So count the attempts. After three, accept whatever came back and
+                # write it, flagged as partial with the true count in "sampled", rather
+                # than leaving a permanent hole and a permanent cost.
+                tries = store["meta"].setdefault("tries", {})
+                tries[day] = tries.get(day, 0) + 1
+                if tries[day] < 3:
+                    print(f"{day}  INCOMPLETE, not written "
+                          f"(attempt {tries[day]} of 3)", flush=True)
+                    DATA.write_text(json.dumps(store, separators=(",", ":"),
+                                               sort_keys=True))
+                    continue
+                print(f"{day}  INCOMPLETE on attempt {tries[day]}, "
+                      f"writing what came back and flagging it partial", flush=True)
+                partial = True
+            else:
+                partial = False
+                store["meta"].get("tries", {}).pop(day, None)
             rel = [t for t in S if S[t]["rel"]]
             if not rel:
-                print(f"{day}  no relevant headlines, not written", flush=True)
+                # Same trap as a short reply: never recorded means retried for ever.
+                # A date where nothing made a claim is a real result, so record it
+                # alongside the dates GDELT had no coverage for.
+                store["meta"].setdefault("empty", [])
+                if day not in store["meta"]["empty"]:
+                    store["meta"]["empty"].append(day)
+                    store["meta"]["empty"].sort()
+                store["meta"].get("tries", {}).pop(day, None)
+                DATA.write_text(json.dumps(store, separators=(",", ":"),
+                                           sort_keys=True))
+                print(f"{day}  nothing relevant in {len(S)} headlines, "
+                      f"recorded as empty", flush=True)
                 continue
             ua_u = [S[t]["ua"] for t in rel if not S[t]["attr"]]
             ru_u = [S[t]["ru"] for t in rel if not S[t]["attr"]]
@@ -330,6 +366,7 @@ def main():
             ua_nb = [S[t]["ua"] for t in rel if S[t]["src"] != "belligerent"]
             ru_nb = [S[t]["ru"] for t in rel if S[t]["src"] != "belligerent"]
             store["daily"][day] = {
+                **({"partial": True} if partial else {}),
                 "ua": round(statistics.mean(S[t]["ua"] for t in rel), 2),
                 "ru": round(statistics.mean(S[t]["ru"] for t in rel), 2),
                 "ua_unattr": round(statistics.mean(ua_u), 2) if ua_u else None,
@@ -348,9 +385,16 @@ def main():
                                 "n": sum(1 for t in rel if S[t]["kind"] == k)}
                             for k in set(S[t]["kind"] for t in rel)},
             }
-            store["meta"] = {"rubric": RUBRIC_HASH, "model": MODEL, "temp": TEMPERATURE,
-                             "per_day": PER_DAY, "batch": BATCH, "domain_cap": DOMAIN_CAP,
-                             "updated": dt.datetime.now(dt.timezone.utc).isoformat()}
+            # UPDATE meta, never replace it. Assigning a fresh dict here wiped
+            # "empty" and "tries" on every successful date, so dates GDELT has no
+            # coverage for were re-queried on every run for ever and the attempt
+            # counter could never reach three. That undid both endless-queue fixes.
+            store["meta"].update({
+                "rubric": RUBRIC_HASH, "model": MODEL, "temp": TEMPERATURE,
+                "per_day": PER_DAY, "batch": BATCH, "domain_cap": DOMAIN_CAP,
+                "updated": dt.datetime.now(dt.timezone.utc).isoformat()})
+            # the attempt counter has done its job for this date
+            store["meta"].get("tries", {}).pop(day, None)
             DATA.write_text(json.dumps(store, separators=(",", ":"), sort_keys=True))
 
             # The day file: what the site shows when a reader opens this date. Kept in
@@ -374,8 +418,13 @@ def main():
             done += 1
             d = store["daily"][day]
             el = (time.time() - t0) / 60
+            # Show progress against the WHOLE series, not this run's queue. The old
+            # label restarted at 1 on every run, which reads exactly like the backfill
+            # having lost everything and started over.
+            total_done = len(store["daily"]) + len(store.get("meta", {}).get("empty", []))
             print(f"{day}  ua {d['ua']:5.1f}  ru {d['ru']:5.1f}  n={d['n']:3}  "
-                  f"[{done}/{len(todo)}] {el:.0f}m elapsed", flush=True)
+                  f"[{total_done}/{len(days)} of the series, {done} this run] "
+                  f"{el:.0f}m elapsed", flush=True)
             in_a_row = 0
         except DeadKey as e:
             sys.exit(f"AUTH FAILED, not retrying: {e}")
