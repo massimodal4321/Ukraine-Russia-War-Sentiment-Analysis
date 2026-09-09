@@ -1,21 +1,16 @@
 name: Backfill
 
 on:
-  # Four triggers, not one. GitHub treats scheduled workflows as best-effort and
-  # openly says they can be delayed under load or dropped altogether, and the top and
-  # half of each hour are the most congested slots on the platform. A single daily
-  # trigger meant one skipped run cost a whole day of backfill.
+  # Two triggers, four hours apart. GitHub treats scheduled workflows as best-effort
+  # and says outright that they can be delayed under load or dropped, and the top and
+  # half of each hour are the most congested slots. One trigger meant a single skip
+  # cost a whole day, so there is a second as a fallback.
   #
-  # The odd minutes avoid the congestion. The spread means a dropped trigger is picked
-  # up a few hours later instead of tomorrow. A run with nothing to do exits in about
-  # forty seconds, so the extra triggers cost nothing.
-  #
-  # 09:07 UTC is two hours after the Gemini quota resets at 07:00.
+  # The odd minute avoids the congestion. 09:07 UTC is two hours after the Gemini
+  # quota resets at 07:00. If the first is dropped the second picks it up.
   schedule:
     - cron: "7 9 * * *"
     - cron: "7 13 * * *"
-    - cron: "7 17 * * *"
-    - cron: "7 21 * * *"
   workflow_dispatch:
     inputs:
       phase:
@@ -35,6 +30,13 @@ permissions:
   contents: write
   actions: write
 
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+# A second trigger is only free if it cannot collide with a run already working.
+# This makes GitHub refuse to start a new run while one is in flight, so the 13:07
+# fallback does nothing at all unless the 09:07 attempt never happened.
 concurrency:
   group: backfill
   cancel-in-progress: false
