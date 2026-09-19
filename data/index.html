@@ -122,11 +122,12 @@ p.hint{margin:0 0 10px}
 /* On a phone the page furniture costs more than it is worth: 24px of padding each
    side is 13% of a 360px screen, taken straight out of the chart. */
 @media(max-width:760px){
-  /* "Hover the chart for figures" has no meaning on a touchscreen, and with nothing
-     to hover the line never fills in, so it sits there as a permanent instruction
-     for something that cannot be done. The date picker beside it still works. */
-  #hint{display:none}
-  .foot{justify-content:flex-end}
+  /* The row under the chart holds three things. "Hover the chart for figures" has no
+     meaning on a touchscreen and never fills in, and "Open a date" hands you a native
+     date wheel to reach a day you can already reach by tapping the chart. Both go.
+     The download buttons stay, and take the row to themselves. */
+  #hint,.foot .dates{display:none}
+  .foot{justify-content:flex-end;padding:10px 12px}
   .wrap{padding:16px 10px 56px}
   .pad{padding:10px 6px}
   .framehead{padding:11px 12px}
