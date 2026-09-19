@@ -2198,8 +2198,11 @@ function exportMeta(key, title){
     return {title:st, ylab:yl, xlab:"Date",
             sub: smooth>1?`averaged over ${smooth} days`:"not averaged"};
   }
+  /* Not the card's description: those run to a couple of sentences and spill off the
+     side of the frame. The date range and the source are added by the exporter, which
+     is all a subtitle needs to carry. */
   const c=CHARTS[key];
-  return {title, sub:c?c.p:"", xlab:"Date",
+  return {title, sub:"", xlab:"Date",
           ylab: c ? (c.stack ? "Share of the period's headlines (%)" : c.unit) : ""};
 }
 
