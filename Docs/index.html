@@ -465,7 +465,9 @@ headlines a day</span>. This measures what the press asserted, not what happened
 
 <section id="suggest">
  <h2>Send a suggestion</h2>
- <p class="lede">Corrections, missing events and methodology objections are all welcome.</p>
+ <p class="lede">Corrections, missing events and methodology objections are all welcome.
+ Send opens your email app with the message ready, or write to <span id="sa"></span>
+ directly.</p>
  <div class="panel suggest">
   <div>
     <label for="sm">Your suggestion</label>
@@ -2099,12 +2101,42 @@ document.addEventListener("focusout",hideTip);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")hideTip();});
 window.addEventListener("scroll",hideTip,{passive:true});
 
+/* Assembled here rather than written into the markup, which keeps it away from the
+   scrapers that read page source without running it. Paste a form-service endpoint
+   into FORM_ENDPOINT and Send posts there instead of opening a mail client. */
+const CONTACT=["gaininggroundindex","gmail.com"].join("@");
+const FORM_ENDPOINT="";
+
 /* ---------- modals ---------- */
 function openModal(html){$("mbody").innerHTML=html;$("modal").hidden=false;$("scrim").classList.add("on");}
 document.addEventListener("click",e=>{
   if(e.target.id==="ss"){
-    $("sr").textContent = $("hp").value ? "Blocked." :
-      $("sm").value.trim().length<4 ? "Add a little more detail." : "Sent. Thank you.";
+    /* This used to print "Sent. Thank you." and throw the message away. It sent
+       nothing anywhere: no endpoint, no address, not one network call in the whole
+       page. Somebody could have written out a real objection to the method and been
+       told it had arrived.
+
+       It now opens the writer's own mail client with the message already filled in,
+       which needs no server and no third party. Set FORM_ENDPOINT to a form service
+       and it posts there instead, with no mail client involved. */
+    const hp=$("hp").value, msg=$("sm").value.trim(), from=$("se").value.trim();
+    const say=t=>$("sr").textContent=t;
+    if(hp) return say("Blocked.");
+    if(msg.length<4) return say("Add a little more detail.");
+
+    if(FORM_ENDPOINT){
+      say("Sending...");
+      fetch(FORM_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",
+        Accept:"application/json"},body:JSON.stringify({message:msg,email:from,
+        page:location.href})})
+        .then(r=>say(r.ok?"Sent. Thank you.":"That did not go through. Write to "+CONTACT+" instead."))
+        .catch(()=>say("That did not go through. Write to "+CONTACT+" instead."));
+      return;
+    }
+    const body=msg+(from?"\n\n-- \nReply to: "+from:"")+"\n\nSent from "+location.href;
+    location.href="mailto:"+CONTACT+"?subject="+
+      encodeURIComponent("Narrative Index: suggestion")+"&body="+encodeURIComponent(body);
+    say("Opening your email app. If nothing happens, write to "+CONTACT+".");
   }
   if(e.target.id==="dl"||e.target.id==="dlj"){
     const S=agg(lo,hi);
@@ -2122,6 +2154,7 @@ setSeg("[data-y]", (lo===T0&&hi===T1) ? document.querySelector('[data-y="0"]') :
 setSeg("[data-m]",document.querySelector(`[data-m="${mode}"]`));
 setSeg("[data-s]",document.querySelector(`[data-s="${smooth}"]`));
 $("estim").checked=estimate;
+if($("sa")) $("sa").textContent=CONTACT;
 syncDateInputs(); draw(); drawBrush();
 Object.keys(CHARTS).forEach(addCard);
 wireDownloads($("maindl"), "main", $("main"), "Who was ahead");
