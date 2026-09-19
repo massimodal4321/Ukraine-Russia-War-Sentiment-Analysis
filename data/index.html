@@ -122,6 +122,11 @@ p.hint{margin:0 0 10px}
 /* On a phone the page furniture costs more than it is worth: 24px of padding each
    side is 13% of a 360px screen, taken straight out of the chart. */
 @media(max-width:760px){
+  /* "Hover the chart for figures" has no meaning on a touchscreen, and with nothing
+     to hover the line never fills in, so it sits there as a permanent instruction
+     for something that cannot be done. The date picker beside it still works. */
+  #hint{display:none}
+  .foot{justify-content:flex-end}
   .wrap{padding:16px 10px 56px}
   .pad{padding:10px 6px}
   .framehead{padding:11px 12px}
@@ -666,12 +671,16 @@ let lo=T0, hi=T1, mode="gap", smooth=31, estimate=false;
    plot keeps a portrait-ish shape that suits a phone. Recomputed on resize, so
    turning the handset sideways redraws at the desktop proportions. */
 const NARROW=()=> (window.innerWidth||1200) < 760;
-let GEO = NARROW() ? {W:560,L:46,R:30} : {W:1200,L:66,R:52};
+let GEO = NARROW() ? {W:560,L:62,R:30} : {W:1200,L:66,R:52};
 let MINIW = NARROW() ? 420 : 560;
 let XTICKS = NARROW() ? 4 : 7;
 function applyGeo(){
   const n=NARROW();
-  GEO = n ? {W:560,L:46,R:30} : {W:1200,L:66,R:52};
+  /* The left gutter holds two things: the rotated "Ukraine ahead" down the edge, and
+     the axis numbers. On a narrow frame the numbers are set larger, so at 46 they
+     reached back to x=13 while the rotated label still ran to x=16 and the two
+     collided. 62 clears both with room to spare, at a cost of 14 units of plot. */
+  GEO = n ? {W:560,L:62,R:30} : {W:1200,L:66,R:52};
   MINIW = n ? 420 : 560;
   XTICKS = n ? 4 : 7;
   PLOTPX = GEO.W - GEO.L - GEO.R;
@@ -1020,7 +1029,9 @@ function draw(){
      on the axis rather than inside the plot means it never sits over the data, never
      needs a plate behind it to stay readable, and appears exactly where a reader looks
      to decode the scale. Each label is centred in the half it describes. */
-  const ZFS=11, ZTRACK=0.11;
+  // the rotated label sets its own size, so it has to grow with the rest of the
+  // type on a narrow frame or it ends up smaller than the numbers beside it
+  const ZFS=NARROW()?13:11, ZTRACK=0.11;
   const axisText=(txt,py,cls,col)=>{
     const t=el("text",{x:11,y:py,class:cls,"text-anchor":"middle",
       transform:`rotate(-90 11 ${py})`});
@@ -1142,20 +1153,24 @@ function draw(){
     gg.appendChild(dataLayer);
     gg.appendChild(el("line",{x1:L,x2:W-R,y1:zeroY,y2:zeroY,stroke:cssv("--ink"),
       "stroke-width":1,"stroke-opacity":.5}));
-    /* "even" and "average" sit in the right margin, which is 52 units on a wide
-       frame and only 30 on a narrow one: at the larger mobile type the word needs 31
-       and runs off the edge. On a narrow frame it goes inside the plot instead, which
-       costs nothing, rather than widening the margin and costing chart. */
-    const zl=NARROW() ? el("text",{x:L+5,y:zeroY-6,class:"axm"})
-                      : el("text",{x:W-R+7,y:zeroY+4,class:"axm"});
-    zl.textContent="even"; gg.appendChild(zl);
+    /* "even" sits in the right margin, which is 52 units on a wide frame and only 30
+       on a narrow one, so at the larger mobile type it ran off the edge. Moving it
+       inside the plot fixed the cropping and made it worse: a word floating over the
+       artwork with nothing to anchor it to. On a narrow frame the zero line is
+       already the boundary between the two colours and the axis is labelled either
+       side of it, so the word earns nothing. Dropped rather than relocated. */
+    if(!NARROW()){
+      const zl=el("text",{x:W-R+7,y:zeroY+4,class:"axm"});
+      zl.textContent="even"; gg.appendChild(zl);
+    }
   } else {
     if(v0<0&&v1>0){
       gg.appendChild(el("line",{x1:L,x2:W-R,y1:y(0),y2:y(0),stroke:cssv("--ink"),
         "stroke-width":1.2,"stroke-opacity":.5}));
-      const zl=NARROW() ? el("text",{x:L+5,y:y(0)-6,class:"axm"})
-                        : el("text",{x:W-R+7,y:y(0)+4,class:"axm"});
-      zl.textContent="average"; gg.appendChild(zl);
+      if(!NARROW()){
+        const zl=el("text",{x:W-R+7,y:y(0)+4,class:"axm"});
+        zl.textContent="average"; gg.appendChild(zl);
+      }
     }
     SER.forEach(ser=>{
       const col=cssv(ser.c);
@@ -2042,8 +2057,11 @@ function buildCompare(){
   $("cmpdl").innerHTML=`<span class="lbl">Download</span>
     <button class="tiny" id="cdp">PNG</button><button class="tiny" id="cds">SVG</button>
     <button class="tiny" id="cdc">CSV</button>`;
-  $("cdp").onclick=()=>savePNG(cs,ttl,`comparison_${rangeTag()}`);
-  $("cds").onclick=()=>saveBlob(`comparison_${rangeTag()}.svg`,svgStandalone(cs,ttl),"image/svg+xml");
+  const cmeta={title:"Comparison", sub:vals.map(v=>v.lab).join("  vs  "),
+    ylab:"Spread from each line's own average", xlab:"Date"};
+  $("cdp").onclick=()=>savePNG(cs,cmeta,`comparison_${rangeTag()}`);
+  $("cds").onclick=()=>saveBlob(`comparison_${rangeTag()}.svg`,
+    svgStandalone(cs,cmeta),"image/svg+xml");
   $("cdc").onclick=()=>saveBlob(`comparison_${rangeTag()}.csv`,
     "period,"+vals.map(v=>v.lab.toLowerCase().replace(/[^a-z0-9]+/g,"_")).join(",")+
     ","+vals.map((v,i)=>"z"+(i+1)).join(",")+"\n"+
@@ -2066,44 +2084,69 @@ function saveBlob(name, text, type){
 const rangeTag = ()=>`${iso(lo)}_to_${iso(hi)}`;
 
 /* an SVG lifted off the page needs the fonts and colours inlined, or it opens blank */
-function svgStandalone(svg, title){   // title is kept for the callers; nothing prints it
+function svgStandalone(svg, meta){
+  /* A downloaded chart travels on its own: into a document, a slide, a message. So
+     it has to say what it is without the page around it. This wraps the artwork in
+     margins and fills them, rather than writing over the drawing.
+
+     An earlier version put a caption 22px below the foot of the picture while leaving
+     the viewBox ending at the foot, so the text sat outside the coordinate space and
+     came out sliced. The margins are added to the viewBox here, and the artwork is
+     translated into the space that is left. */
+  if(typeof meta==="string") meta={title:meta};
   const vb=(svg.getAttribute("viewBox")||"0 0 600 300").split(/\s+/).map(Number);
-  const vars=["--ground","--panel","--ink","--soft","--rule","--hair","--ua","--ru","--band",
-              "--neutral","--c1","--c2","--c3","--c4","--c5"];
-  let clone=svg.cloneNode(true);
-  clone.querySelectorAll("rect[fill=transparent]").forEach(n=>n.remove());
-  clone.querySelectorAll("line[stroke-dasharray='2 2']").forEach(n=>n.remove());
-  let body=clone.innerHTML;
-  vars.forEach(v=>{body=body.split(`var(${v})`).join(cssv(v));});
+  const W=vb[2], H=vb[3];
+  const PADL=meta.ylab?34:14, PADR=14, PADT=meta.title?58:14, PADB=meta.xlab?42:14;
+  const OW=W+PADL+PADR, OH=H+PADT+PADB;
+
+  const clone=svg.cloneNode(true);
+  clone.querySelectorAll("line[stroke-dasharray='2 2']").forEach(n=>n.remove()); // crosshair
+  clone.querySelectorAll("[opacity='0']").forEach(n=>n.remove());
+  const body=clone.innerHTML;
   const style=`<style>
-    text{font-family:'IBM Plex Sans',-apple-system,sans-serif}
+    text{font-family:${cssv("--sans")}}
     .ax{fill:${cssv("--soft")};font-size:11px}
+    .axm{fill:${cssv("--soft")};font-size:11px;font-family:${cssv("--mono")}}
     .evlab{fill:${cssv("--ink")};fill-opacity:.8;font-size:10.5px}
-    .axm{fill:${cssv("--soft")};font-size:11px;font-family:'IBM Plex Mono',monospace}
     .gl{stroke:${cssv("--hair")};stroke-width:1}
     .ev{stroke:${cssv("--rule")};stroke-width:1;stroke-dasharray:2 3}
     .zero{stroke:${cssv("--soft")};stroke-width:1}
+    .zonelab{font-size:11px;letter-spacing:.11em;text-transform:uppercase;font-weight:500}
+    .t-title{fill:${cssv("--ink")};font-family:${cssv("--serif")};font-size:19px}
+    .t-sub{fill:${cssv("--soft")};font-size:12px}
+    .t-axis{fill:${cssv("--soft")};font-size:12px}
   </style>`;
-  /* There used to be a caption strip along the bottom: the chart's name, the date
-     range and "Narrative Index". It was drawn 22px below the foot of the artwork
-     while the viewBox still ended at the foot, so it sat outside the coordinate
-     space the browser draws into and came out clipped to a sliver in every export.
 
-     It is gone rather than repaired, because the download already carries all of it
-     in the filename: who-was-ahead_2022-02-24_to_2026-09-17.png. Nothing is lost and
-     the image comes out clean to the edges. */
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.join(" ")}" `+
-    `width="${vb[2]}" height="${vb[3]}">${style}`+
+  const sub=[meta.sub, `${fmtISO(lo)} to ${fmtISO(hi)}`, "Gaining Ground Index"]
+    .filter(Boolean).join("  \u00b7  ");
+  let extra="";
+  if(meta.title){
+    extra+=`<text x="${PADL}" y="27" class="t-title">${meta.title}</text>`+
+           `<text x="${PADL}" y="45" class="t-sub">${sub}</text>`;
+  }
+  if(meta.xlab){
+    extra+=`<text x="${PADL+W/2}" y="${OH-14}" text-anchor="middle" class="t-axis">${meta.xlab}</text>`;
+  }
+  if(meta.ylab){
+    const cy=PADT+H/2;
+    extra+=`<text transform="translate(15,${cy}) rotate(-90)" text-anchor="middle" `+
+           `class="t-axis">${meta.ylab}</text>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${OW} ${OH}" `+
+    `width="${OW}" height="${OH}">${style}`+
     `<rect width="100%" height="100%" fill="${cssv("--panel")}"/>`+
-    `${body}</svg>`;
+    extra+
+    `<g transform="translate(${PADL},${PADT})">${body}</g></svg>`;
 }
-function savePNG(svg, title, name){
-  const src=svgStandalone(svg,title);
-  const vb=(svg.getAttribute("viewBox")||"0 0 600 300").split(/\s+/).map(Number);
+
+function savePNG(svg, meta, name){
+  const src=svgStandalone(svg,meta);
+  // the canvas has to match the wrapped drawing, not the original artwork
+  const ovb=src.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   const scale=2, img=new Image();
   img.onload=()=>{
     const cv=document.createElement("canvas");
-    cv.width=vb[2]*scale; cv.height=vb[3]*scale;   // exactly the artwork, no strip
+    cv.width=(+ovb[1])*scale; cv.height=(+ovb[2])*scale;
     const ctx=cv.getContext("2d");
     ctx.fillStyle=cssv("--panel"); ctx.fillRect(0,0,cv.width,cv.height);
     ctx.setTransform(scale,0,0,scale,0,0);
@@ -2137,15 +2180,42 @@ function chartCSV(key){
   return "period,"+names.join(",")+"\n"+
     S.map((p,i)=>[p.d,...ss.map(v=>v.v[i].toFixed(2))].join(",")).join("\n");
 }
+/* What each chart's axes measure, in words, for the downloaded copy. The page can
+   leave this implicit because the heading and the prose sit right above the picture;
+   a PNG dropped into a document cannot. */
+function exportMeta(key, title){
+  if(key==="main"){
+    const yl = mode==="gap"   ? "Ukraine's score minus Russia's (points)"
+             : mode==="z"     ? "Distance from that line's own average (standard deviations)"
+             : mode==="nobell"? "Score from publications and analysts only, 0 to 100"
+             :                  "Score, 0 to 100";
+    const st = mode==="gap"   ? "Who was ahead"
+             : mode==="z"     ? "Vs normal"
+             : mode==="nobell"? "Independent sources only" : "Both scores";
+    /* The title follows the view. It was wired once at start-up as "Who was ahead",
+       so switching to Both scores and downloading gave a file titled for a chart it
+       was not. */
+    return {title:st, ylab:yl, xlab:"Date",
+            sub: smooth>1?`averaged over ${smooth} days`:"not averaged"};
+  }
+  const c=CHARTS[key];
+  return {title, sub:c?c.p:"", xlab:"Date",
+          ylab: c ? (c.stack ? "Share of the period's headlines (%)" : c.unit) : ""};
+}
+
 function wireDownloads(row, key, svg, title){
   row.innerHTML=`<span class="lbl">Download</span>
     <button class="tiny" data-x="png">PNG</button>
     <button class="tiny" data-x="svg">SVG</button>
     <button class="tiny" data-x="csv">CSV</button>`;
-  const slug=title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-  row.querySelector('[data-x=png]').onclick=()=>savePNG(svg,title,`${slug}_${rangeTag()}`);
-  row.querySelector('[data-x=svg]').onclick=()=>
-    saveBlob(`${slug}_${rangeTag()}.svg`,svgStandalone(svg,title),"image/svg+xml");
+  const slugify=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const slug=slugify(title);
+  row.querySelector('[data-x=png]').onclick=()=>{
+    const m=exportMeta(key,title);
+    savePNG(svg,m,`${slugify(m.title)}_${rangeTag()}`);};
+  row.querySelector('[data-x=svg]').onclick=()=>{
+    const m=exportMeta(key,title);
+    saveBlob(`${slugify(m.title)}_${rangeTag()}.svg`,svgStandalone(svg,m),"image/svg+xml");};
   row.querySelector('[data-x=csv]').onclick=()=>
     saveBlob(`${slug}_${rangeTag()}.csv`,chartCSV(key),"text/csv");
 }
