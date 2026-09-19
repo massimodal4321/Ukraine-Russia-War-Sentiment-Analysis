@@ -66,19 +66,30 @@ jobs:
           GAP_S: "10"
         run: python scripts/backfill.py
 
+      # The site is one self-contained file with the dataset baked into it, so new data
+      # only reaches readers once the page is rebuilt. This swaps the payload and leaves
+      # everything else in the page alone, including the hand-written event marks. It
+      # needs nothing installed, and says "nothing to write" and exits 0 when the data
+      # has not moved. If the Backfill step above failed, this never runs.
+      - name: Rebuild the page
+        run: python scripts/build_site.py
+
       - name: Commit
         run: |
           git config user.name  "backfill-bot"
           git config user.email "actions@github.com"
-          # -A on the directory, not a list of paths. A named path that does not exist
+          # -A on directories, not a list of paths. A named path that does not exist
           # makes git add fail and stage NOTHING, which silently threw away a whole
           # run's work: .quota_stopped only exists when a run stops on quota, so any
           # run that stopped on the time budget committed nothing at all.
-          git add -A data
+          # docs is here too, or the rebuilt page never leaves the runner.
+          git add -A data docs
           if git diff --staged --quiet; then
             echo "nothing new"
           else
-            git commit -m "backfill: ${{ inputs.phase }}"
+            # inputs.phase is empty on a scheduled run, so the fallback goes here as
+            # well or the nightly commits are all titled "backfill: " with no phase.
+            git commit -m "backfill: ${{ inputs.phase || 'daily' }}"
             git pull --rebase --autostash
             git push
           fi
@@ -97,7 +108,7 @@ jobs:
           if [ "$DID" -eq 0 ]; then
             echo "this run completed no dates, so not chaining. Something needs looking at."
           elif [ -f data/.quota_stopped ]; then
-            echo "stopped on the daily quota, not chaining. The 08:30 UTC schedule continues tomorrow."
+            echo "stopped on the daily quota, not chaining. The 09:07 UTC schedule continues tomorrow."
           elif [ "$REMAIN" -gt 0 ]; then
             gh workflow run backfill.yml -f phase="${{ inputs.phase || 'daily' }}" -f chain=true
           else
