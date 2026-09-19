@@ -466,8 +466,7 @@ headlines a day</span>. This measures what the press asserted, not what happened
 <section id="suggest">
  <h2>Send a suggestion</h2>
  <p class="lede">Corrections, missing events and methodology objections are all welcome.
- Send copies your message and offers a way to post it, or write to
- <span id="sa"></span> directly.</p>
+ Or write to <span id="sa"></span> directly.</p>
  <div class="panel suggest">
   <div>
     <label for="sm">Your suggestion</label>
@@ -623,11 +622,19 @@ function pushState(){
   const h=`#from=${new Date(lo).toISOString().slice(0,10)}`+
     `&to=${new Date(hi).toISOString().slice(0,10)}&view=${mode}&smooth=${smooth}`+
     (estimate?"&est=1":"");
-  if(history.replaceState) history.replaceState(null,"",h); else location.hash=h;
+  /* Writing the URL is a convenience, not part of the chart, so it must never be
+     able to stop the page working. A document with no origin of its own, which is
+     what an embedded or sandboxed frame gets, refuses both routes outright and
+     throws. Everything below this line used to be skipped when that happened. */
+  try{
+    if(history.replaceState) history.replaceState(null,"",h); else location.hash=h;
+  }catch(_){ /* sandboxed: the range simply is not shareable by URL here */ }
   if(typeof updatePageData==="function") updatePageData();
 }
 function readState(){
-  const h=new URLSearchParams(location.hash.slice(1));
+  let h;
+  try{ h=new URLSearchParams(location.hash.slice(1)); }
+  catch(_){ return true; }          // no readable URL, so open on the defaults
   const when=v=>{const t=new Date(v+"T00:00:00Z").getTime(); return Number.isFinite(t)?t:NaN;};
   if(h.get("from")||h.get("to"))
     [lo,hi]=clampRange(h.get("from")?when(h.get("from")):lo,
@@ -1960,7 +1967,7 @@ function saveBlob(name, text, type){
 const rangeTag = ()=>`${iso(lo)}_to_${iso(hi)}`;
 
 /* an SVG lifted off the page needs the fonts and colours inlined, or it opens blank */
-function svgStandalone(svg, title){
+function svgStandalone(svg, title){   // title is kept for the callers; nothing prints it
   const vb=(svg.getAttribute("viewBox")||"0 0 600 300").split(/\s+/).map(Number);
   const vars=["--ground","--panel","--ink","--soft","--rule","--hair","--ua","--ru","--band",
               "--neutral","--c1","--c2","--c3","--c4","--c5"];
@@ -1978,12 +1985,18 @@ function svgStandalone(svg, title){
     .ev{stroke:${cssv("--rule")};stroke-width:1;stroke-dasharray:2 3}
     .zero{stroke:${cssv("--soft")};stroke-width:1}
   </style>`;
+  /* There used to be a caption strip along the bottom: the chart's name, the date
+     range and "Narrative Index". It was drawn 22px below the foot of the artwork
+     while the viewBox still ended at the foot, so it sat outside the coordinate
+     space the browser draws into and came out clipped to a sliver in every export.
+
+     It is gone rather than repaired, because the download already carries all of it
+     in the filename: who-was-ahead_2022-02-24_to_2026-09-17.png. Nothing is lost and
+     the image comes out clean to the edges. */
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.join(" ")}" `+
-    `width="${vb[2]}" height="${vb[3]+34}">${style}`+
+    `width="${vb[2]}" height="${vb[3]}">${style}`+
     `<rect width="100%" height="100%" fill="${cssv("--panel")}"/>`+
-    `<g transform="translate(0,0)">${body}</g>`+
-    `<text x="${vb[2]/2}" y="${vb[3]+22}" text-anchor="middle" class="ax">`+
-    `${title} \u00b7 ${fmtISO(lo)} to ${fmtISO(hi)} \u00b7 Narrative Index</text></svg>`;
+    `${body}</svg>`;
 }
 function savePNG(svg, title, name){
   const src=svgStandalone(svg,title);
@@ -1991,7 +2004,7 @@ function savePNG(svg, title, name){
   const scale=2, img=new Image();
   img.onload=()=>{
     const cv=document.createElement("canvas");
-    cv.width=vb[2]*scale; cv.height=(vb[3]+34)*scale;
+    cv.width=vb[2]*scale; cv.height=vb[3]*scale;   // exactly the artwork, no strip
     const ctx=cv.getContext("2d");
     ctx.fillStyle=cssv("--panel"); ctx.fillRect(0,0,cv.width,cv.height);
     ctx.setTransform(scale,0,0,scale,0,0);
@@ -2110,11 +2123,20 @@ document.addEventListener("focusout",hideTip);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")hideTip();});
 window.addEventListener("scroll",hideTip,{passive:true});
 
-/* Assembled here rather than written into the markup, which keeps it away from the
-   scrapers that read page source without running it. Paste a form-service endpoint
-   into FORM_ENDPOINT and Send posts there instead of opening a mail client. */
+/* A page served as static files has nowhere to send a form, so posting it needs a
+   relay. FORM_KEY is a Web3Forms access key: sign up with an address, they email the
+   key, it goes here. The key is not the address, so nothing worth harvesting sits in
+   the page. FORM_ENDPOINT is the escape hatch for any other service that takes a
+   JSON POST, Formspree included.
+
+   With neither set the Send button falls back to copying the message and offering
+   somewhere to paste it, which needs no third party at all. */
+const FORM_KEY="85e473a7-d9fc-408d-9af5-a97d059c7138";
+const FORM_ENDPOINT="";     // <- or any endpoint that accepts a JSON POST
+
+/* Assembled rather than written into the markup, which keeps it away from the
+   scrapers that read page source without running it. */
 const CONTACT=["gaininggroundindex","gmail.com"].join("@");
-const FORM_ENDPOINT="";
 
 /* ---------- modals ---------- */
 function openModal(html){$("mbody").innerHTML=html;$("modal").hidden=false;$("scrim").classList.add("on");}
@@ -2133,20 +2155,35 @@ document.addEventListener("click",e=>{
     if(hp) return say("Blocked.");
     if(msg.length<4) return say("Add a little more detail.");
 
-    if(FORM_ENDPOINT){
-      say("Sending...");
-      fetch(FORM_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",
-        Accept:"application/json"},body:JSON.stringify({message:msg,email:from,
-        page:location.href})})
-        .then(r=>say(r.ok?"Sent. Thank you.":"That did not go through. Write to "+CONTACT+" instead."))
-        .catch(()=>say("That did not go through. Write to "+CONTACT+" instead."));
+    if(FORM_KEY||FORM_ENDPOINT){
+      const url=FORM_ENDPOINT||"https://api.web3forms.com/submit";
+      const payload=FORM_ENDPOINT
+        ? {message:msg, email:from, page:location.href}
+        : {access_key:FORM_KEY, subject:"Narrative Index: suggestion",
+           from_name:"Narrative Index", message:msg,
+           email:from||undefined, page:location.href};
+      const btn=$("ss"); btn.disabled=true; say("Sending...");
+      fetch(url,{method:"POST",headers:{"Content-Type":"application/json",
+        Accept:"application/json"},body:JSON.stringify(payload)})
+        .then(r=>r.json().catch(()=>({success:r.ok})))
+        .then(d=>{
+          if(d.success===false) throw new Error(d.message||"rejected");
+          $("sm").value=""; $("se").value="";
+          say("Sent. Thank you.");
+        })
+        /* A failure here must not lose what they wrote. Fall through to the copy
+           route so the message is still recoverable. */
+        .catch(()=>fallback("That did not send. "))
+        .finally(()=>{btn.disabled=false;});
       return;
     }
+    return fallback("");
     /* mailto only works if the machine has been told which app handles mail, and a
        Windows box whose owner reads Gmail in a browser usually has not been. It fails
        silently, which is the worst way to fail. So the message goes to the clipboard,
        the address is shown, and both a Gmail link and a mail-app link are offered.
        Whatever the reader uses, one of those routes works. */
+    function fallback(lead){
     const subject="Narrative Index: suggestion";
     const body=msg+(from?"\n\n-- \nReply to: "+from:"")+"\n\nSent from "+location.href;
     const enc=encodeURIComponent;
@@ -2158,9 +2195,10 @@ document.addEventListener("click",e=>{
       "\u00b7 <a href=\""+mail+"\">open your mail app</a>";
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(body)
-        .then(()=>show("Copied to your clipboard. "))
-        .catch(()=>show(""));
-    } else show("");
+        .then(()=>show(lead+"Copied to your clipboard. "))
+        .catch(()=>show(lead));
+    } else show(lead);
+    }
   }
   if(e.target.id==="dl"||e.target.id==="dlj"){
     const S=agg(lo,hi);
