@@ -466,8 +466,8 @@ headlines a day</span>. This measures what the press asserted, not what happened
 <section id="suggest">
  <h2>Send a suggestion</h2>
  <p class="lede">Corrections, missing events and methodology objections are all welcome.
- Send opens your email app with the message ready, or write to <span id="sa"></span>
- directly.</p>
+ Send copies your message and offers a way to post it, or write to
+ <span id="sa"></span> directly.</p>
  <div class="panel suggest">
   <div>
     <label for="sm">Your suggestion</label>
@@ -610,7 +610,11 @@ let lo=T0, hi=T1, mode="gap", smooth=31, estimate=false;
    lane at the far left, and the right-anchored numbers next to the plot. A rotated
    label's horizontal footprint is its line height, not its text length, which is why
    16px was not enough and the two ran into each other. */
-const GEO={W:1200,L:66,R:104};
+/* R is the strip kept clear to the right of the plot. The only thing drawn in it is
+   the small word beside the zero line, "average" or "even", set 7px out in an 11px
+   mono face: 44px at the widest. It was 104, so more than half the strip was empty
+   and the chart stopped well short of the frame. 52 leaves comfortable room. */
+const GEO={W:1200,L:66,R:52};
 
 /* ---------- state in the URL so a view can be shared or cited ---------- */
 function pushState(){
@@ -785,6 +789,11 @@ function drawn(a,b,w){
       const steps=Math.round(span/out.step);
       for(let k=1;k<steps;k++) filled.push(blend(out[i],nx,k/steps));
     }
+    /* The cadence has to travel with the points. This is a new array, so without
+       copying it across the drawer falls back to guessing the spacing from the
+       smallest gap it can see, decides every ordinary step is a break, and cuts the
+       line at every single point. The chart then renders as nothing at all. */
+    filled.step=out.step;
     return filled;
   }
   return out;
@@ -2133,10 +2142,25 @@ document.addEventListener("click",e=>{
         .catch(()=>say("That did not go through. Write to "+CONTACT+" instead."));
       return;
     }
+    /* mailto only works if the machine has been told which app handles mail, and a
+       Windows box whose owner reads Gmail in a browser usually has not been. It fails
+       silently, which is the worst way to fail. So the message goes to the clipboard,
+       the address is shown, and both a Gmail link and a mail-app link are offered.
+       Whatever the reader uses, one of those routes works. */
+    const subject="Narrative Index: suggestion";
     const body=msg+(from?"\n\n-- \nReply to: "+from:"")+"\n\nSent from "+location.href;
-    location.href="mailto:"+CONTACT+"?subject="+
-      encodeURIComponent("Narrative Index: suggestion")+"&body="+encodeURIComponent(body);
-    say("Opening your email app. If nothing happens, write to "+CONTACT+".");
+    const enc=encodeURIComponent;
+    const gmail="https://mail.google.com/mail/?view=cm&fs=1&to="+enc(CONTACT)+
+                "&su="+enc(subject)+"&body="+enc(body);
+    const mail="mailto:"+CONTACT+"?subject="+enc(subject)+"&body="+enc(body);
+    const show=lead=>$("sr").innerHTML=lead+"Send it to <strong>"+CONTACT+"</strong> "+
+      "\u00b7 <a href=\""+gmail+"\" target=\"_blank\" rel=\"noopener\">open Gmail</a> "+
+      "\u00b7 <a href=\""+mail+"\">open your mail app</a>";
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(body)
+        .then(()=>show("Copied to your clipboard. "))
+        .catch(()=>show(""));
+    } else show("");
   }
   if(e.target.id==="dl"||e.target.id==="dlj"){
     const S=agg(lo,hi);
