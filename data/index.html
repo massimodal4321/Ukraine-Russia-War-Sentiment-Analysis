@@ -17,7 +17,7 @@
  <meta property="og:url" content="https://gaininggroundindex.com/">
  <meta property="og:type" content="website">
  <meta name="twitter:card" content="summary_large_image">
-<!-- BUILD 2026-09-19-B: export titles, mobile fixes, data to 18 Sept -->
+<!-- BUILD 2026-09-19-D: calendar x-axis, estimate on by default -->
 <title>Narrative Index: Ukraine and Russia</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -498,10 +498,14 @@ headlines a day</span>. This measures what the press asserted, not what happened
    suspended collection from 15 June to 1 July 2025 during an infrastructure outage on
    its own hosting. No data was gathered, so none exists to recover, from GDELT's
    archive or anywhere else. The chart breaks across those dates rather than joining
-   them, and a smoothing window will not average over them. Switch the estimate on
-   with the control above the chart to see a straight line drawn between the two
-   edges: it is a guess, drawn dashed so it cannot be mistaken for a reading, and it
-   is never included in the figures, the table or the download.</li>
+   them. By default the chart draws a straight line from the last reading before the
+   gap to the first after it, so the shape is not interrupted, and says
+   <em>June 2025 estimated</em> in the line under the chart for as long as it is doing
+   so. That line is a guess at seventeen days nobody measured. Switch the estimate off
+   with the control above the chart and the chart breaks across those dates instead,
+   which is what the record actually contains. Either way the invented days reach no
+   figure, no table row and no download, and a smoothing window never averages across
+   them.</li>
    <li><strong>Supply is tracked separately, and that is a judgement.</strong> Weapons
    arriving are kept out of the headline index because a missile that has not been fired has
    changed nothing, but they plainly matter to what happens next. The chart below carries them
@@ -652,7 +656,71 @@ P.forEach(p=>{p.zua=ownNormal(p,"ua"); p.zru=ownNormal(p,"ru");
 const sumCounts=objs=>objs.reduce((a,o)=>{for(const k in o)a[k]=(a[k]||0)+o[k];return a;},{});
 const fmt=(t,l)=>new Date(t).toLocaleDateString("en-GB",l?{day:"numeric",month:"short",year:"numeric"}:{month:"short",year:"2-digit"});
 const fmtISO=t=>new Date(t).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-let lo=T0, hi=T1, mode="gap", smooth=31, estimate=false;
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+/* ---------- dates on the x axis ----------
+   Ticks land on calendar boundaries: the first of a year, of a half, of a quarter, of
+   a month, or a Monday. They used to be seven equal divisions of whatever range was
+   selected, which is correct to the day and unreadable as a scale - across the whole
+   record each step came out at 283 days, so the axis ran "Nov 22, Sept 23, Jun 24"
+   and looked arbitrary, because it was. Nobody holds a 283-day interval in their head.
+
+   The ladder runs coarse to fine and the finest rung that still fits the width wins,
+   so zooming in moves from years to halves to quarters to months to fortnights by
+   itself. Every boundary is computed in UTC: the series is anchored at midnight UTC,
+   and formatting 1 January through a negative-offset locale renders it as 31 December
+   of the year before, which would put the wrong year on the label. */
+const TICKLADDER=[{u:"y",n:10},{u:"y",n:5},{u:"y",n:2},{u:"y",n:1},
+                  {u:"m",n:6},{u:"m",n:3},{u:"m",n:1},
+                  {u:"d",n:14},{u:"d",n:7},{u:"d",n:2},{u:"d",n:1}];
+function tickDates(a,b,st){
+  const out=[], d=new Date(a);
+  if(st.u==="y"){
+    let yr=Math.ceil(d.getUTCFullYear()/st.n)*st.n;
+    for(;;){const t=Date.UTC(yr,0,1); if(t>b)break; if(t>=a)out.push(t); yr+=st.n;}
+  } else if(st.u==="m"){
+    let yr=d.getUTCFullYear(), mo=Math.ceil(d.getUTCMonth()/st.n)*st.n;
+    if(mo>11){yr++; mo=0;}
+    for(;;){const t=Date.UTC(yr,mo,1); if(t>b)break; if(t>=a)out.push(t);
+      mo+=st.n; if(mo>11){yr+=Math.floor(mo/12); mo%=12;}}
+  } else {
+    /* anchored to one fixed Monday rather than to the left edge, so the marks stay on
+       the same dates while the window slides instead of crawling with it */
+    const EPOCH=Date.UTC(2022,0,3), per=st.n*864e5;
+    for(let t=EPOCH+Math.ceil((a-EPOCH)/per)*per; t<=b; t+=per) out.push(t);
+  }
+  return out;
+}
+function tickLabel(t,u){
+  const d=new Date(t);
+  if(u==="y") return String(d.getUTCFullYear());
+  if(u==="m") return MONTHS[d.getUTCMonth()]+" "+String(d.getUTCFullYear()).slice(2);
+  return d.getUTCDate()+" "+MONTHS[d.getUTCMonth()];
+}
+function axisTicks(a,b,maxN){
+  let best=null;
+  for(const st of TICKLADDER){
+    const ts=tickDates(a,b,st);
+    if(ts.length>maxN) break;          // coarse to fine, so counts only rise
+    if(ts.length>=2) best={step:st,ts};
+  }
+  return best||{step:{u:"d",n:1},ts:[a,b]};   // a span too short to hold any boundary
+}
+/* Draws the row and returns nothing. cw is the width of a character at the size the
+   labels are actually set, which is larger on a phone. A tick close to an edge is
+   anchored inward rather than centred, or half its label hangs outside the plot. */
+function drawDateAxis(gg,tk,x,L,R,W,baseY,cw,tickLen){
+  tk.ts.forEach(t=>{
+    const px=x(t), txt=tickLabel(t,tk.step.u), w=txt.length*cw;
+    let anchor="middle", tx=px;
+    if(px-w/2<L){ anchor="start"; tx=Math.max(px,L); }
+    else if(px+w/2>W-R){ anchor="end"; tx=Math.min(px,W-R); }
+    if(tickLen) gg.appendChild(el("line",{x1:px,x2:px,y1:baseY-tickLen-8,y2:baseY-8,
+      stroke:cssv("--rule"),"stroke-width":1}));
+    const e2=el("text",{x:tx,y:baseY,"text-anchor":anchor,class:"ax"});
+    e2.textContent=txt; gg.appendChild(e2);
+  });
+}
+let lo=T0, hi=T1, mode="gap", smooth=31, estimate=true;
 /* the main chart and the brush share these margins, so a date sits at the same
    horizontal position in both and dragging under a feature selects that feature */
 /* L has to hold two separate things side by side: the rotated axis label in its own
@@ -675,7 +743,6 @@ let lo=T0, hi=T1, mode="gap", smooth=31, estimate=false;
 const NARROW=()=> (window.innerWidth||1200) < 760;
 let GEO = NARROW() ? {W:560,L:62,R:30} : {W:1200,L:66,R:52};
 let MINIW = NARROW() ? 420 : 560;
-let XTICKS = NARROW() ? 4 : 7;
 function applyGeo(){
   const n=NARROW();
   /* The left gutter holds two things: the rotated "Ukraine ahead" down the edge, and
@@ -684,7 +751,6 @@ function applyGeo(){
      collided. 62 clears both with room to spare, at a cost of 14 units of plot. */
   GEO = n ? {W:560,L:62,R:30} : {W:1200,L:66,R:52};
   MINIW = n ? 420 : 560;
-  XTICKS = n ? 4 : 7;
   PLOTPX = GEO.W - GEO.L - GEO.R;
   MAXPTS = Math.floor(PLOTPX / 3);
   // the two fixed charts carry their viewBox in the markup, so it has to move too
@@ -700,7 +766,7 @@ function pushState(){
      entry per frame and left the back button useless after one drag */
   const h=`#from=${new Date(lo).toISOString().slice(0,10)}`+
     `&to=${new Date(hi).toISOString().slice(0,10)}&view=${mode}&smooth=${smooth}`+
-    (estimate?"&est=1":"");
+    `&est=${estimate?1:0}`;
   /* Writing the URL is a convenience, not part of the chart, so it must never be
      able to stop the page working. A document with no origin of its own, which is
      what an embedded or sandboxed frame gets, refuses both routes outright and
@@ -721,7 +787,7 @@ function readState(){
   // only values this version offers, so a link from an older one still opens
   const v=h.get("view");    if(["gap","both","z","nobell"].indexOf(v)>=0) mode=v;
   const w=+h.get("smooth"); if([1,7,31].indexOf(w)>=0) smooth=w;
-  estimate = h.get("est")==="1";
+  const est=h.get("est"); if(est!==null) estimate = est==="1";   // absent: keep the default
   return true;
 }
 
@@ -1191,12 +1257,9 @@ function draw(){
   }
 
   // ---- x axis ----
-  const nt=Math.min(XTICKS,S.length);
-  for(let i=0;i<nt;i++){
-    const t=lo+(hi-lo)*i/(nt-1);
-    const tx=el("text",{x:x(t),y:plotBot+21,"text-anchor":i===0?"start":i===nt-1?"end":"middle",class:"ax"});
-    tx.textContent=fmt(t); gg.appendChild(tx);
-  }
+  const nar=NARROW();
+  drawDateAxis(gg, axisTicks(lo,hi,Math.max(2,Math.floor((W-L-R)/(nar?110:100)))),
+               x, L, R, W, plotBot+21, nar?7.4:6.0, 4);
 
   // ---- interaction ----
   const cross=el("line",{y1:plotTop,y2:plotBot,stroke:cssv("--ink"),"stroke-width":1,
@@ -1894,11 +1957,9 @@ function drawMini(card,key){
 
   gg.appendChild(mlayer);          // data goes on top of every rule drawn above
 
-  // x labels
-  [lo,(lo+hi)/2,hi].forEach((t,i)=>{
-    const tx=el("text",{x:i===0?L:i===2?W-R:(L+W-R)/2,y:H-9,
-      "text-anchor":i===0?"start":i===2?"end":"middle",class:"ax"});
-    tx.textContent=fmt(t); gg.appendChild(tx);});
+  // x labels, on the same calendar boundaries the main chart uses
+  drawDateAxis(gg, axisTicks(lo,hi,Math.max(2,Math.floor((W-L-R)/80))),
+               x, L, R, W, H-9, NARROW()?7.4:6.0, 3);
 
   // crosshair and a numeric readout, so the mini charts are readable not decorative
   const cr=el("line",{y1:T,y2:H-B,stroke:"var(--ink)","stroke-width":1,
@@ -2230,7 +2291,7 @@ const GLOSSARY = {
  "outage":["No data collected",
   "GDELT stopped collecting on 15 June 2025 and resumed on 2 July, during an outage on its own hosting. Those seventeen days were never gathered anywhere, so none of them can be recovered."],
  "estimate":["Estimating the gap",
-  "GDELT stopped collecting on 15 June 2025 and resumed on 2 July, during an outage on its own hosting, so seventeen days were never gathered by anyone and cannot be recovered. This draws a straight line between the last reading before the gap and the first after it. A guess, not a measurement, and never written into the series: it reaches no figure, no table row and no download."],
+  "On by default. GDELT stopped collecting on 15 June 2025 and resumed on 2 July, during an outage on its own hosting, so seventeen days were never gathered by anyone and cannot be recovered. This draws a straight line between the last reading before the gap and the first after it. A guess, not a measurement, and never written into the series: it reaches no figure, no table row and no download."],
  "smooth":["Smoothing",
   "Each point is the average of the days around it: seven for a week, thirty-one for a month, the same at every zoom. A single day can rest on as few as 11 headlines, so most daily movement is noise. A window never averages across the gap."],
  "v-gap":["Who was ahead",
