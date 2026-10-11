@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Narrative compass | Gaining Ground Index</title>
+<meta name="description" content="Every day of the Russia-Ukraine war, plotted by what news headlines said about who was gaining. Updated daily.">
+<meta property="og:title" content="Narrative compass | Gaining Ground Index">
+<meta property="og:description" content="Every day of the Russia-Ukraine war, plotted by what news headlines said about who was gaining. Updated daily.">
+<meta property="og:image" content="https://gaininggroundindex.com/og.png">
+<link rel="icon" href="../apple-touch-icon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<style>
+:root{--page:#EAE7DF;--hint:#6B6963;--edge:rgba(30,30,28,.12);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#161615;--hint:#9C9A93;--edge:rgba(255,255,255,.12)}}
+:root[data-theme="dark"]{--page:#161615;--hint:#9C9A93;--edge:rgba(255,255,255,.12)}
+html,body{height:100%;margin:0}
+body{background:var(--page);font-family:'IBM Plex Sans',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;box-sizing:border-box}
+canvas{display:block;width:min(100%,calc((100vh - 70px)*0.8));max-width:1080px;height:auto;aspect-ratio:4/5;border-radius:12px;box-shadow:0 0 0 1px var(--edge);cursor:pointer}
+p{margin:0;font-size:13px;color:var(--hint);text-align:center}
+a{color:inherit;text-underline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style></head><body>
+<h1 class="sr-only">Narrative compass: how strongly news headlines said each side was gaining, every day since 24 February 2022</h1>
+<canvas id="c" role="img" aria-label="Animated compass of the Gaining Ground Index: a dot moves through each day since 24 February 2022, slowing at major events, then all days appear with the share of days each side was ahead">Animated compass</canvas>
+<p id="note">Tap to pause.</p>
+<p><a href="../">Back to the Gaining Ground Index</a></p>
+<script>function prep(D,X){
+const dayOf=d=>Math.round(Date.parse(d+'T00:00:00Z')/864e5);
+const pts=D.pts.map(p=>Array.isArray(p)?{t:dayOf(p[0]),ua:p[1],ru:p[2]}:{t:dayOf(p.d),ua:p.ua,ru:p.ru}).filter(p=>Number.isFinite(p.t)&&Number.isFinite(p.ua)&&Number.isFinite(p.ru)).sort((a,b)=>a.t-b.t);
+const WIN=15,WT=[];for(let k=0;k<WIN;k++)WT.push(Math.sin(Math.PI*(k+1)/(WIN+1))**2);
+const t0=pts[0].t,t1=pts[pts.length-1].t,N=t1-t0+1;
+const U=new Array(N),R=new Array(N),EST=new Array(N).fill(false),OK=new Array(N).fill(false);
+pts.forEach((p,i)=>{if(i<WIN-1)return;let su=0,sr=0,c=0;for(let k=0;k<WIN;k++){const q=pts[i-WIN+1+k];if(p.t-q.t!==WIN-1-k)return;su+=WT[k]*q.ua;sr+=WT[k]*q.ru;c+=WT[k]}const d=p.t-t0;U[d]=su/c;R[d]=sr/c;OK[d]=true});
+let FIRST=0;while(!OK[FIRST])FIRST++;
+for(let i=FIRST;i<N;i++){if(OK[i])continue;let a=i-1,b=i;while(!OK[b])b++;for(let k=i;k<b;k++){const f=(k-a)/(b-a);U[k]=U[a]+(U[b]-U[a])*f;R[k]=R[a]+(R[b]-R[a])*f;EST[k]=true}i=b}
+const own=((X&&X.events)||[]).filter(x=>x&&x.date&&x.label).map(x=>({d:x.date,t:x.label,tier:+(x.tier??2),live:(x.status||'live')!=='hidden'}));
+const site=(D.events||[]).map(x=>({d:x.d,t:x.label,tier:+(x.tier??1),live:true})).filter(x=>!own.some(o=>Math.abs(dayOf(o.d)-dayOf(x.d))<=3));
+const EV=[...own,...site].filter(x=>x.live&&x.tier<=2).map(x=>({i:dayOf(x.d)-t0,d:x.d,t:x.t,tier:x.tier<=1?1:2})).filter(x=>x.i>=0&&x.i<N).sort((p,q)=>p.i-q.i);
+return {start:t0*864e5,N,U,R,EST,OK,FIRST,EV};
+}
+const C={bg:'#F7F5F0',ink:'#1E1E1C',sec:'#55534D',mut:'#8A877F',grid:'#DAD6CC',ua:'#34627F',ru:'#D93B2B'};
+const Z={ua:{c:'52,98,127',pb:'rgba(52,98,127,0.15)',pf:'#24465C',t:'Ukraine ahead',s:'Ukraine score higher'},ru:{c:'217,59,43',pb:'rgba(217,59,43,0.13)',pf:'#8E2418',t:'Russia ahead',s:'Russia score higher'},close:{c:'136,135,128',pb:'#ECE9E1',pf:'#55534D',t:'Too close to call'}};
+const SANS="'IBM Plex Sans', sans-serif",SERIF="'Source Serif 4', Georgia, serif";
+let LO=10,HI=50,SPD=40;const TH=3.5,PIN=7,PL=210,PT=420,PS=690,RUN_S=42,LIFE1=1.8,LIFE2=1.2,MAXON=3;
+let PINS=[],zA={ua:.08,ru:.08,close:.06},frameDt=0;
+
+function layoutPins(){const {U,R,N,FIRST,EV}=X0;const gX=v=>PL+(Math.min(HI,Math.max(LO,v))-LO)/(HI-LO)*PS,gY=v=>PT+PS-(Math.min(HI,Math.max(LO,v))-LO)/(HI-LO)*PS;
+ctx.font='500 26px '+SANS;const dg=LO+0.775*(HI-LO);const keep=[[PL,PT,340,110],[PL+PS-340,PT+PS-110,340,110],[gX(dg)-95,gY(dg)-95,170,170]];PINS=[];
+const hit=(a,b)=>a[0]<b[0]+b[2]&&a[0]+a[2]>b[0]&&a[1]<b[1]+b[3]&&a[1]+a[3]>b[1];
+for(const e of EV){const s=e.i+PIN;if(s<FIRST||s>=N)continue;
+const on=PINS.filter(q=>q.e>s);if(on.length>=MAXON){on.sort((p,q)=>p.s-q.s);on[0].e=Math.min(on[0].e,s+0.35*SPD)}
+const lab=e.t,x=gX(U[s]),y=gY(R[s]),tw=ctx.measureText(lab).width,h=34,life=(e.tier===1?LIFE1:LIFE2)*SPD;
+const cands=[[x+22,y-h/2],[x-22-tw,y-h/2],[x-tw/2,y-h-20],[x-tw/2,y+20],[x+16,y-h-14],[x-16-tw,y-h-14],[x+16,y+14],[x-16-tw,y+14],[x+22,y-h-44],[x-22-tw,y-h-44],[x+22,y+44],[x-22-tw,y+44],[x-tw/2,y-h-56],[x-tw/2,y+56]];
+const path=[];for(let k=Math.max(FIRST,s-Math.round(1.125*SPD));k<=Math.min(N-1,s+life);k++)path.push([gX(U[k]),gY(R[k])]);
+const cost=b=>path.reduce((n,[px,py])=>n+(px>b[0]-22&&px<b[0]+b[2]+22&&py>b[1]-22&&py<b[1]+b[3]+22?1:0),0);
+const live=PINS.filter(q=>q.e>s);let pick=null,fb=false,best=1e9;
+for(const c of cands){const box=[c[0]-4,c[1],tw+8,h];if(box[0]<PL+6||box[0]+box[2]>PL+PS-6||box[1]<PT+6||box[1]+box[3]>PT+PS-6)continue;if(keep.some(k=>hit(box,k)))continue;if(live.some(q=>hit(box,q.box)||hit(box,[q.x-14,q.y-14,28,28])))continue;const cs=cost(box);if(cs<best){best=cs;pick={tx:c[0],ty:c[1]+h-9,box,cost:cs}}}
+if(!pick){for(const pass of [1,2]){for(const c of cands){const box=[c[0]-4,c[1],tw+8,h];if(box[0]<PL+6||box[0]+box[2]>PL+PS-6||box[1]<PT+6||box[1]+box[3]>PT+PS-6)continue;if(live.some(q=>hit(box,q.box)))continue;if(pass===1&&keep.some(k=>hit(box,k)))continue;const cs=cost(box)+(pass===2?1000:0);if(cs<best){best=cs;pick={tx:c[0],ty:c[1]+h-9,box,cost:cs}}}if(pick)break}}
+if(!pick){fb=true;const c=cands[0];const tx=Math.min(c[0],PL+PS-10-tw);pick={tx,ty:c[1]+h-9,box:[tx-4,c[1],tw+8,h]}}
+PINS.push({s,e:s+life,x,y,lab,fb,tier:e.tier,...pick})}}
+const fmtS=ms=>new Date(ms).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1080,H=1350;cv.width=W;cv.height=H;
+const rr=(x,y,w,h,q)=>{ctx.beginPath();ctx.moveTo(x+q,y);ctx.arcTo(x+w,y,x+w,y+h,q);ctx.arcTo(x+w,y+h,x,y+h,q);ctx.arcTo(x,y+h,x,y,q);ctx.arcTo(x,y,x+w,y,q);ctx.closePath()};
+let X0=null,pct=null,PCTN=null,pos=0,ph='intro',pt=0,paused=false,lastT=0;
+const zone=(u,v)=>{const d=Math.round(u)-Math.round(v);return d>TH?'ua':d<-TH?'ru':'close'};
+const fmt=ms=>new Date(ms).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+function msg(t){ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);ctx.fillStyle=C.mut;ctx.font='32px '+SANS;ctx.textAlign='center';ctx.fillText(t,W/2,H/2)}
+function draw(){
+const {start,N,U,R,EST,EV,FIRST}=X0;
+const isIntro=ph==='intro',isCloud=ph==='cloud',cloudA=isCloud?Math.min(1,pt):0;
+const p=Math.max(FIRST,pos);
+const a=Math.min(N-2,Math.floor(p)),f=p-a,cu=U[a]+(U[a+1]-U[a])*f,cr=R[a]+(R[a+1]-R[a])*f,cz=zone(cu,cr),day=Math.min(N-1,Math.floor(p+1e-6));
+ctx.globalAlpha=1;ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);ctx.textBaseline='alphabetic';
+ctx.fillStyle=C.ink;ctx.font='500 30px '+SERIF;ctx.textAlign='left';if('letterSpacing' in ctx)ctx.letterSpacing='4px';ctx.fillText('GAINING GROUND INDEX',64,100);if('letterSpacing' in ctx)ctx.letterSpacing='0px';
+ctx.fillStyle=C.mut;ctx.font='28px '+SANS;ctx.textAlign='right';ctx.fillText('gaininggroundindex.com',1016,100);
+const ev0=EV.find(e=>e.i===0);
+if(isIntro){
+ctx.fillStyle=C.ink;ctx.font='400 84px '+SERIF;ctx.textAlign='left';ctx.fillText(fmt(start),64,245);
+if(ev0){ctx.fillStyle=C.ink;ctx.fillRect(64,350,6,32);ctx.font='500 30px '+SANS;ctx.fillText(ev0.t,86,377)}
+}else{
+ctx.textAlign='left';ctx.fillStyle=C.mut;ctx.font='28px '+SANS;ctx.fillText('Media narrative up to',64,165);
+ctx.fillStyle=C.ink;ctx.font='400 84px '+SERIF;ctx.fillText(fmt(start+day*864e5),64,245);
+let x=64;const sc=(lab,val,col)=>{ctx.textAlign='left';ctx.fillStyle=col;ctx.fillRect(x,289,20,20);x+=32;ctx.font='28px '+SANS;ctx.fillStyle=C.sec;ctx.fillText(lab,x,312);x+=ctx.measureText(lab).width+12;ctx.font='500 38px '+SANS;ctx.fillStyle=C.ink;ctx.fillText(val,x,312);x+=ctx.measureText('00').width+56};
+sc('Ukraine',String(Math.round(cu)),C.ua);sc('Russia',String(Math.round(cr)),C.ru);
+if(isCloud){ctx.globalAlpha=cloudA;ctx.fillStyle=C.ink;ctx.fillRect(64,350,6,32);ctx.font='500 30px '+SANS;ctx.textAlign='left';ctx.fillText('Every measured day since the invasion',86,377);ctx.globalAlpha=1}
+}
+const L=210,T=420,S=690,Xp=v=>L+(Math.min(HI,Math.max(LO,v))-LO)/(HI-LO)*S,Yp=v=>T+S-(Math.min(HI,Math.max(LO,v))-LO)/(HI-LO)*S;
+const P={ua:[[LO+TH,LO],[HI,LO],[HI,HI-TH]],ru:[[LO,LO+TH],[LO,HI],[HI-TH,HI]],close:[[LO,LO],[LO+TH,LO],[HI,HI-TH],[HI,HI],[HI-TH,HI],[LO,LO+TH]]};
+const gz=(cu-cr)>TH?'ua':(cr-cu)>TH?'ru':'close';
+for(const k in P){const base=k==='close'?.06:.08,boost=k==='close'?.10:.17,tgt=base+((!isIntro&&!isCloud&&k===gz)?boost:0);zA[k]+=(tgt-zA[k])*(frameDt>0?1-Math.exp(-frameDt/0.12):1);const al=zA[k];ctx.beginPath();P[k].forEach(([px,py],i)=>i?ctx.lineTo(Xp(px),Yp(py)):ctx.moveTo(Xp(px),Yp(py)));ctx.closePath();ctx.fillStyle='rgba('+Z[k].c+','+al+')';ctx.fill()}
+ctx.strokeStyle=C.grid;ctx.lineWidth=2;ctx.strokeRect(L,T,S,S);
+ctx.setLineDash([10,10]);ctx.strokeStyle=C.mut;ctx.beginPath();ctx.moveTo(Xp(LO),Yp(LO));ctx.lineTo(Xp(HI),Yp(HI));ctx.stroke();ctx.setLineDash([]);
+ctx.fillStyle=C.mut;ctx.font='27px '+SANS;
+for(let v=LO;v<=HI;v+=10){ctx.textAlign='center';ctx.fillText(v,Xp(v),T+S+38);ctx.textAlign='right';ctx.fillText(v,L-16,Yp(v)+9)}
+ctx.font='500 28px '+SANS;ctx.textAlign='left';
+const xl='Ukraine gaining  \u2192',xw=ctx.measureText(xl).width,xx=L+S/2-(xw+32)/2;ctx.fillStyle=C.ua;ctx.fillRect(xx,T+S+66,20,20);ctx.fillStyle=C.sec;ctx.fillText(xl,xx+32,T+S+85);
+ctx.save();ctx.translate(L-78,T+S/2);ctx.rotate(-Math.PI/2);const yl='Russia gaining  \u2192',yw=ctx.measureText(yl).width,yx=-(yw+32)/2;ctx.fillStyle=C.ru;ctx.fillRect(yx,-20,20,20);ctx.fillStyle=C.sec;ctx.fillText(yl,yx+32,0);ctx.restore();
+const corner=(k,x0,y0,al)=>{ctx.textAlign=al;ctx.fillStyle=C.ink;ctx.font='500 36px '+SANS;ctx.fillText(Z[k].t,x0,y0);if(isCloud){ctx.globalAlpha=cloudA;ctx.font='500 30px '+SANS;ctx.fillText(pct[k],x0,y0+40)}else{ctx.fillStyle=C.mut;ctx.font='27px '+SANS;ctx.fillText(Z[k].s,x0,y0+38)}ctx.globalAlpha=1};
+corner('ru',L+26,T+56,'left');corner('ua',L+S-26,T+S-66,'right');
+const dg=LO+0.775*(HI-LO);ctx.save();ctx.translate(Xp(dg),Yp(dg));ctx.rotate(-Math.PI/4);ctx.textAlign='center';if(isCloud){ctx.fillStyle=C.ink;ctx.font='500 27px '+SANS;ctx.fillText('Too close to call',0,-54);ctx.globalAlpha=cloudA;ctx.font='500 30px '+SANS;ctx.fillText(pct.close,0,-16);ctx.globalAlpha=1}else{ctx.fillStyle=C.mut;ctx.font='27px '+SANS;ctx.fillText('Too close to call',0,-16)}ctx.restore();
+if(cloudA>0){ctx.fillStyle=C.mut;ctx.globalAlpha=.38*cloudA;for(let i=FIRST;i<N;i++){if(EST[i])continue;ctx.beginPath();ctx.arc(Xp(U[i]),Yp(R[i]),4,0,7);ctx.fill()}ctx.globalAlpha=1}
+if(!isIntro&&!isCloud){for(const q of PINS){const age=p-q.s,life=q.e-q.s;if(age<0||age>=life)continue;const fi=0.125*SPD,fo=Math.min(0.35*SPD,life/2),k=Math.min(1,age/fi),sc2=1-(1-k)**3,al=age<life-fo?1:(life-age)/fo;
+ctx.globalAlpha=al;ctx.beginPath();ctx.arc(q.x,q.y,Math.max(.5,11*sc2),0,7);ctx.fillStyle=C.bg;ctx.fill();ctx.lineWidth=3.5;ctx.strokeStyle=C.ink;ctx.stroke();
+ctx.globalAlpha=1}}
+if(!isIntro){
+ctx.strokeStyle=C.ink;ctx.lineWidth=5;ctx.lineCap='butt';ctx.lineJoin='round';
+let qx=Xp(cu),qy=Yp(cr);
+const TLD=Math.max(10,Math.round(1.125*SPD)),TL=ph==='hold'?Math.ceil(TLD*Math.max(0,1-pt/0.4)):isCloud?0:TLD;
+for(let k=0;k<TL;k++){const j=a-k;if(j<FIRST)break;const nx=Xp(U[j]),ny=Yp(R[j]);ctx.globalAlpha=.75*(1-k/TLD);ctx.beginPath();ctx.moveTo(qx,qy);ctx.lineTo(nx,ny);ctx.stroke();qx=nx;qy=ny}
+const dk=isCloud?Math.min(1,pt/0.6):0;if(dk<1){ctx.globalAlpha=(ph==='run'?Math.min(1,(p-FIRST)/(0.15*SPD)):1)*(1-dk);ctx.beginPath();ctx.arc(Xp(cu),Yp(cr),16-12*dk,0,7);ctx.fillStyle=C.ink;ctx.fill();if(dk<0.9){ctx.lineWidth=6*(1-dk);ctx.strokeStyle=C.bg;ctx.stroke()}ctx.globalAlpha=1}
+if(!isIntro&&!isCloud){for(const q of PINS){const age=p-q.s,life=q.e-q.s;if(age<0||age>=life)continue;const fi=0.125*SPD,fo=Math.min(0.35*SPD,life/2),k=Math.min(1,age/fi),al=age<life-fo?1:(life-age)/fo;ctx.globalAlpha=al*k;ctx.font='500 26px '+SANS;ctx.textAlign='left';ctx.lineJoin='round';ctx.lineWidth=8;ctx.strokeStyle=C.bg;ctx.strokeText(q.lab,q.tx,q.ty);ctx.fillStyle=C.ink;ctx.fillText(q.lab,q.tx,q.ty);ctx.globalAlpha=1}}
+}
+const bx=64,bw=952,by=1238,fr=isIntro?0:p/(N-1);
+rr(bx,by,bw,8,4);ctx.fillStyle=C.grid;ctx.fill();rr(bx,by,Math.max(8,bw*fr),8,4);ctx.fillStyle=C.ink;ctx.fill();
+const pv=isIntro?0:p;
+for(const e of EV){const ex=bx+bw*e.i/(N-1),big=e.tier===1;ctx.beginPath();ctx.arc(ex,by+4,big?6:3.5,0,7);ctx.fillStyle=e.i<=pv?C.ink:C.bg;ctx.fill();ctx.lineWidth=big?3:2;ctx.strokeStyle=e.i<=pv?C.bg:C.mut;ctx.stroke()}
+ctx.fillStyle=C.mut;ctx.font='27px '+SANS;
+const yr=y=>Math.round((Date.UTC(y,0,1)-start)/864e5);
+[[0,'2022'],[yr(2023),'2023'],[yr(2024),'2024'],[yr(2025),'2025'],[yr(2026),'2026']].forEach(([i,t],n)=>{ctx.textAlign=n?'center':'left';ctx.fillText(t,bx+bw*i/(N-1),by+46)});
+ctx.textAlign='left';ctx.font='27px '+SANS;ctx.fillText('15-day weighted average. Shows what headlines say, not territory.',64,1322);
+if(paused){ctx.fillStyle='rgba(30,30,28,0.75)';rr(W/2-60,T+S/2-60,120,120,20);ctx.fill();ctx.fillStyle=C.bg;ctx.fillRect(W/2-24,T+S/2-30,16,60);ctx.fillRect(W/2+8,T+S/2-30,16,60)}
+}
+function step(now){const dt=lastT?Math.min(.05,(now-lastT)/1000):0;lastT=now;frameDt=dt;
+if(!paused){pt+=dt;
+if(ph==='intro'&&pt>2){ph='run';pt=0;pos=X0.FIRST}
+else if(ph==='run'){pos+=dt*SPD;if(pos>=X0.N-1){pos=X0.N-1;ph='hold';pt=0}}
+else if(ph==='hold'&&pt>0.9){ph='cloud';pt=0}
+else if(ph==='cloud'&&pt>8){ph='intro';pt=0;pos=0}}
+draw();requestAnimationFrame(step)}
+cv.onclick=()=>{paused=!paused};
+msg('Loading the index');
+function init(D,X){X0=prep(D,X);
+let mn=1e9,mx=-1e9;for(let i=X0.FIRST;i<X0.N;i++){mn=Math.min(mn,X0.U[i],X0.R[i]);mx=Math.max(mx,X0.U[i],X0.R[i])}
+LO=Math.max(0,Math.floor((mn-2)/10)*10);HI=Math.min(100,Math.ceil((mx+2)/10)*10);SPD=(X0.N-1-X0.FIRST)/RUN_S;
+{const c={ua:0,ru:0,close:0};let n=0;for(let i=X0.FIRST;i<X0.N;i++){if(X0.EST[i])continue;n++;c[zone(X0.U[i],X0.R[i])]++}
+const ks=['ua','ru','close'],raw=ks.map(k=>100*c[k]/n),fl=raw.map(Math.floor);let left=100-fl.reduce((x,y)=>x+y,0);ks.map((k,i)=>i).sort((x,y)=>(raw[y]-fl[y])-(raw[x]-fl[x])).forEach(i=>{if(left>0){fl[i]++;left--}});pct={};PCTN={};ks.forEach((k,i)=>{pct[k]=fl[i]+'% of days';PCTN[k]=fl[i]});}
+const note=document.getElementById('note');if(note)note.textContent='Tap to pause. Updated daily, data to '+fmt(X0.start+(X0.N-1)*864e5)+'.';
+const go=()=>{layoutPins();draw();requestAnimationFrame(step)};
+if(document.fonts){Promise.all([document.fonts.load("500 30px 'Source Serif 4'"),document.fonts.load("400 84px 'Source Serif 4'"),document.fonts.load("500 30px 'IBM Plex Sans'"),document.fonts.load("500 26px 'IBM Plex Sans'"),document.fonts.load("27px 'IBM Plex Sans'")]).then(go,go)}else go();}
+const parseD=t=>{const s=t.indexOf('const D = '),e=t.indexOf(';\n',s);if(s<0||e<0)throw new Error('no data');return JSON.parse(t.slice(s+10,e))};
+Promise.all([fetch('../index.html',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}).then(parseD),
+fetch('events.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)]).then(([D,X])=>init(D,X)).catch(()=>msg("Couldn't load the data. Try refreshing."));
+
+</script>
+</body></html>
