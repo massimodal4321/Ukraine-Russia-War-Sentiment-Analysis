@@ -5,6 +5,7 @@
   "Remove a label: set \"status\" to \"hidden\". Do not delete the entry, so it is never re-added.",
   "Add a label: copy an entry and change the date and label. Dates are YYYY-MM-DD.",
   "\"tier\" 1 = major event (shown longer, large dot on the timeline). \"tier\" 2 = notable event.",
+  "Entries with \"origin\": \"auto\" were added by the detector. Each one has a GitHub issue listing the headlines behind it.",
   "Events on the main site that are not in this file still appear, using the main site's wording."
  ],
  "events": [
