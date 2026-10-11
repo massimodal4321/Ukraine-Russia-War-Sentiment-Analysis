@@ -1,0 +1,250 @@
+{
+ "_how_to_edit": [
+  "This file controls the event labels on gaininggroundindex.com/compass.",
+  "Change a label: edit its \"label\" text. Keep it short and say who did what.",
+  "Remove a label: set \"status\" to \"hidden\". Do not delete the entry, so it is never re-added.",
+  "Add a label: copy an entry and change the date and label. Dates are YYYY-MM-DD.",
+  "\"tier\" 1 = major event (shown longer, large dot on the timeline). \"tier\" 2 = notable event.",
+  "Events on the main site that are not in this file still appear, using the main site's wording."
+ ],
+ "events": [
+  {
+   "date": "2022-04-02",
+   "label": "Russian withdrawal from Kyiv",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-05-20",
+   "label": "Russia captures Mariupol",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-07-03",
+   "label": "Russia captures Lysychansk",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-08-09",
+   "label": "Ukraine strikes Crimean airbase",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2022-09-06",
+   "label": "Ukraine's Kharkiv counteroffensive",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-10-08",
+   "label": "Ukraine strikes Kerch Bridge",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-10-10",
+   "label": "Russia begins power grid strikes",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2022-11-11",
+   "label": "Ukraine retakes Kherson",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-01-01",
+   "label": "Ukraine's Makiivka barracks strike",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2023-05-20",
+   "label": "Russia captures Bakhmut",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-06-06",
+   "label": "Kakhovka dam destroyed",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-06-08",
+   "label": "Ukraine's 2023 counteroffensive",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-06-24",
+   "label": "Wagner mutiny in Russia",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-07-17",
+   "label": "Russia quits Black Sea grain deal",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2023-08-23",
+   "label": "Wagner chief Prigozhin killed",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2023-10-26",
+   "label": "Slovakia halts aid to Ukraine",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2024-02-17",
+   "label": "Russia captures Avdiivka",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2024-05-10",
+   "label": "Russia opens Kharkiv offensive",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2024-08-06",
+   "label": "Ukraine's Kursk incursion",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2024-10-18",
+   "label": "North Korea sends troops to Russia",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2025-01-06",
+   "label": "Russia captures Kurakhove",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-03-11",
+   "label": "Ukraine withdraws from Kursk",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-05-02",
+   "label": "Ukraine sea drone downs Russian jet",
+   "tier": 2,
+   "origin": "detected",
+   "status": "live"
+  },
+  {
+   "date": "2025-06-01",
+   "label": "Ukraine's Operation Spiderweb",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-08-11",
+   "label": "Russia's Dobropillia breakthrough",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-08-15",
+   "label": "Trump and Putin meet in Alaska",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-09-07",
+   "label": "Russia's largest air attack on Kyiv",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-12-01",
+   "label": "Russia claims capture of Pokrovsk",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2025-12-14",
+   "label": "Ukraine retakes Kupiansk",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2026-02-06",
+   "label": "Russia captures Huliaipole",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2026-02-11",
+   "label": "Ukraine's 2026 counteroffensive",
+   "tier": 1,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2026-06-25",
+   "label": "Ukraine's campaign to force talks",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2026-07-21",
+   "label": "Ukraine replaces army chief Syrskyi",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  },
+  {
+   "date": "2026-08-14",
+   "label": "Ukraine ends Oleksandrivka offensive",
+   "tier": 2,
+   "origin": "site",
+   "status": "live"
+  }
+ ]
+}
