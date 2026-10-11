@@ -29,6 +29,7 @@ on:
 permissions:
   contents: write
   actions: write
+  issues: write
 
 # A second trigger is only free if it cannot collide with a run already working.
 # This makes GitHub refuse to start a new run while one is in flight, so the 13:07
@@ -73,6 +74,18 @@ jobs:
       # has not moved. If the Backfill step above failed, this never runs.
       - name: Rebuild the page
         run: python scripts/build_site.py
+
+      # Adds new event labels to docs/compass/events.json when a story is suddenly
+      # carried by far more outlets than normal and Gemini judges it a single,
+      # significant event. It only ever adds entries, and opens an issue for each one.
+      # continue-on-error: a problem here must never stop the day's data being saved.
+      - name: Detect new events for the compass
+        continue-on-error: true
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODEL: "gemini-3.5-flash-lite"
+        run: python scripts/detect_events.py
 
       - name: Commit
         run: |
