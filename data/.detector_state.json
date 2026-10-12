@@ -9,6 +9,14 @@
    "end": "2026-10-04",
    "verdict": "label breaks the rules: \"Germany's Merz visits Kyiv to pledge aid\"",
    "label": "Germany's Merz visits Kyiv to pledge aid"
+  },
+  {
+   "names": [
+    "trump"
+   ],
+   "end": "2026-10-11",
+   "verdict": "label breaks the rules: 'Trump and Putin agree on Russian diesel'",
+   "label": "Trump and Putin agree on Russian diesel"
   }
  ]
 }
