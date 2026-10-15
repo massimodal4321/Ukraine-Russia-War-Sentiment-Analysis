@@ -17,6 +17,16 @@
    "end": "2026-10-11",
    "verdict": "label breaks the rules: 'Trump and Putin agree on Russian diesel'",
    "label": "Trump and Putin agree on Russian diesel"
+  },
+  {
+   "names": [
+    "starlink",
+    "spacex",
+    "musk"
+   ],
+   "end": "2026-10-14",
+   "verdict": "not a single event",
+   "label": "Sabotage of Starlink antennas in Bulgaria"
   }
  ]
 }
