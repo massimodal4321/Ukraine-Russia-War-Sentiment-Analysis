@@ -36,6 +36,14 @@
    "end": "2026-10-23",
    "verdict": "significance: minor",
    "label": "Melania Trump brokers Oleshky ceasefire"
+  },
+  {
+   "names": [
+    "patriot"
+   ],
+   "end": "2026-10-31",
+   "verdict": "label breaks the rules: 'US approves Patriot missiles for Ukraine'",
+   "label": "US approves Patriot missiles for Ukraine"
   }
  ]
 }
