@@ -44,6 +44,17 @@
    "end": "2026-10-31",
    "verdict": "label breaks the rules: 'US approves Patriot missiles for Ukraine'",
    "label": "US approves Patriot missiles for Ukraine"
+  },
+  {
+   "names": [
+    "crimea",
+    "bridge",
+    "kerch",
+    "crimean"
+   ],
+   "end": "2026-11-17",
+   "verdict": "added",
+   "label": "Ukraine strikes Crimean Bridge"
   }
  ]
 }

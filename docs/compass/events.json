@@ -246,6 +246,41 @@
    "tier": 2,
    "origin": "site",
    "status": "live"
+  },
+  {
+   "date": "2026-11-16",
+   "label": "Ukraine strikes Crimean Bridge",
+   "tier": 2,
+   "origin": "auto",
+   "status": "live",
+   "added": "2026-11-18",
+   "evidence": [
+    {
+     "title": "Drones Strike Tatarstan Petrochemical Plant, Rostov Grid, Logistics Bridge in Russia",
+     "url": "https://www.kyivpost.com/post/90156",
+     "outlet": "kyivpost.com"
+    },
+    {
+     "title": "Ukraine Launches Massive Drone Barrage, Hits Putin's Crimean Bridge As Refinery Attacks Intensify",
+     "url": "https://www.zerohedge.com/geopolitical/ukraine-launches-massive-drone-barrage-hits-putins-crimean-bridge-refinery-attacks",
+     "outlet": "zerohedge.com"
+    },
+    {
+     "title": "Ukraine hits Russia's Crimea bridge in 1,300-drone barrage",
+     "url": "https://www.timesofearth.com/2026/11/16/ukraine-hits-russias-crimea-bridge-in-1300-drone-barrage/",
+     "outlet": "timesofearth.com"
+    },
+    {
+     "title": "Ucrania lanzó más de mil drones sobre Rusia y golpeó el puente clave que usan las tropas de Putin para abastecer Crimea",
+     "url": "https://www.infobae.com/america/mundo/2026/11/16/ucrania-lanzo-mas-de-mil-drones-sobre-rusia-y-golpeo-el-puente-clave-que-usan-las-tropas-de-putin-para-abastecer-crimea/",
+     "outlet": "infobae.com"
+    },
+    {
+     "title": "Ukraine hits Crimean Bridge in record drone strike on Russia",
+     "url": "https://www.spokesman.com/stories/2026/nov/16/ukraine-hits-crimean-bridge-in-record-drone-strike/",
+     "outlet": "spokesman.com"
+    }
+   ]
   }
  ]
 }
