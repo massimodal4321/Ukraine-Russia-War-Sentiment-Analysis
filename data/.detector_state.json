@@ -55,6 +55,15 @@
    "end": "2026-11-17",
    "verdict": "added",
    "label": "Ukraine strikes Crimean Bridge"
+  },
+  {
+   "names": [
+    "libya",
+    "benghazi"
+   ],
+   "end": "2026-11-23",
+   "verdict": "label breaks the rules: 'Ukraine strikes Russian ship in Libya'",
+   "label": "Ukraine strikes Russian ship in Libya"
   }
  ]
 }
