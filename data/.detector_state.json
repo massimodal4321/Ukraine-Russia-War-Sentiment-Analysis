@@ -64,6 +64,15 @@
    "end": "2026-11-23",
    "verdict": "label breaks the rules: 'Ukraine strikes Russian ship in Libya'",
    "label": "Ukraine strikes Russian ship in Libya"
+  },
+  {
+   "names": [
+    "libia",
+    "bengasi"
+   ],
+   "end": "2026-11-24",
+   "verdict": "label breaks the rules: 'Ukraine strikes Russian ships in Libya'",
+   "label": "Ukraine strikes Russian ships in Libya"
   }
  ]
 }
